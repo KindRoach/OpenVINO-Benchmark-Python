@@ -1,1 +1,1 @@
-openvino-dev[torch]
+openvino-dev[torch]==2022.3
