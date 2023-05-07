@@ -3,6 +3,8 @@ import numpy as np
 from openvino.runtime import Core
 from tqdm import tqdm
 
+from prepare_data_and_model import IMG_SIZE
+
 
 def total_frames(video_path: str):
     cap = cv2.VideoCapture(video_path)
@@ -24,7 +26,7 @@ def read_frames(video_path: str):
 
 def sync_infer(model, video_path):
     for frame in tqdm(read_frames(video_path), total=total_frames(video_path)):
-        inputs = cv2.resize(src=frame, dsize=(224, 224))
+        inputs = cv2.resize(src=frame, dsize=(IMG_SIZE, IMG_SIZE))
         inputs = np.expand_dims(inputs.transpose(2, 0, 1), 0)
         model(inputs)
 

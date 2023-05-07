@@ -2,19 +2,21 @@ import subprocess
 import urllib.request
 
 import torch
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import efficientnet_v2_l, EfficientNet_V2_L_Weights
+
+IMG_SIZE = 480
 
 # download test video
 video_url = "https://storage.openvinotoolkit.org/data/test_data/videos/car-detection.mp4"
 urllib.request.urlretrieve(video_url, "outputs/video.mp4")
 
 # download model
-model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
+model = efficientnet_v2_l(weights=EfficientNet_V2_L_Weights.DEFAULT)
 model.eval()
 
 # convert to onnx
 onnx_path = "outputs/model.onnx"
-dummy_input = torch.randn(1, 3, 224, 224)
+dummy_input = torch.randn(1, 3, IMG_SIZE, IMG_SIZE)
 torch.onnx.export(model, (dummy_input,), onnx_path)
 
 # convert to openvino
@@ -39,7 +41,7 @@ from openvino.tools.pot import load_model, save_model
 from openvino.tools.pot import compress_model_weights
 from openvino.tools.pot import create_pipeline
 
-dmz_inputs = torch.randint(0, 256, [300, 3, 224, 224], dtype=torch.float32)
+dmz_inputs = torch.rand([300, 3, IMG_SIZE, IMG_SIZE], dtype=torch.float32)
 
 
 class DmzLoader(DataLoader):
