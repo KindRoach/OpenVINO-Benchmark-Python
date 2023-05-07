@@ -1,7 +1,12 @@
 import subprocess
+import urllib.request
 
 import torch
 from torchvision.models import resnet50, ResNet50_Weights
+
+# download test video
+video_url = "https://storage.openvinotoolkit.org/data/test_data/videos/car-detection.mp4"
+urllib.request.urlretrieve(video_url, "outputs/video.mp4")
 
 # download model
 model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V2)
