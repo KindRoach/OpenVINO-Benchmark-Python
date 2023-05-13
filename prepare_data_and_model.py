@@ -14,7 +14,7 @@ IMG_SIZE = 480
 
 
 def download_video() -> None:
-    video_url = "https://storage.openvinotoolkit.org/data/test_data/videos/car-detection.mp4"
+    video_url = "https://s3.amazonaws.com/senkorasic.com/test-media/video/caminandes-llamigos/caminandes_llamigos_1080p.mp4"
     urllib.request.urlretrieve(video_url, "outputs/video.mp4")
 
 
