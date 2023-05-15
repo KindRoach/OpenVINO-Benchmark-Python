@@ -9,29 +9,14 @@ import openvino.runtime as ov
 from openvino.runtime import Core, CompiledModel
 from tqdm import tqdm
 
-IMG_SIZE = 480
+from utils import read_frames, IMG_SIZE
+
 N_FRAME = 1000
-
-
-def read_frames(video_path: str):
-    cap = cv2.VideoCapture(video_path)
-    assert cap.isOpened()
-
-    i = 0
-    while i < N_FRAME:
-        success, frame = cap.read()
-        if success:
-            i += 1
-            yield frame
-        else:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
-    cap.release()
 
 
 def sync_infer(model: CompiledModel, video_path: str) -> np.array:
     outputs = []
-    for frame in tqdm(read_frames(video_path), total=N_FRAME):
+    for frame in tqdm(read_frames(video_path, N_FRAME), total=N_FRAME):
         inputs = cv2.resize(src=frame, dsize=(IMG_SIZE, IMG_SIZE))
         inputs = np.expand_dims(inputs.transpose(2, 0, 1), 0)
         outputs.append(model(inputs))
@@ -118,7 +103,7 @@ def main(args) -> None:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--device", type=str, default="CPU",
-                        choices=["CPU", "GPU"] + [f"GPU.{i}" for i in range(128)])
+                        choices=["CPU", "GPU"] + [f"GPU.{i}" for i in range(8)])
     parser.add_argument("-m", "--model_type", type=str, default="int8", choices=["fp32", "fp16", "int8"])
     parser.add_argument("-i", "--infer_mode", type=str, default="async", choices=["async", "sync", "multi_stream"])
     parser.add_argument("-j", "--infer_jobs", type=int, default=os.cpu_count())

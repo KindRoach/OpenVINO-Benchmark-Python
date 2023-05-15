@@ -10,7 +10,7 @@ from openvino.tools.pot import load_model, save_model
 from torch.nn import Module
 from torchvision.models import efficientnet_v2_l, EfficientNet_V2_L_Weights
 
-IMG_SIZE = 480
+from utils import IMG_SIZE
 
 
 def download_video() -> None:
