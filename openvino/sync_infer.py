@@ -5,16 +5,24 @@ import numpy as np
 from openvino.runtime import CompiledModel, Core
 from tqdm import tqdm
 
-from main import N_FRAME
 from utils import read_frames, IMG_SIZE
+
+N_FRAME = 100
 
 
 def sync_infer(model: CompiledModel, video_path: str) -> np.array:
     outputs = []
-    for frame in tqdm(read_frames(video_path, N_FRAME), total=N_FRAME):
-        inputs = cv2.resize(src=frame, dsize=(IMG_SIZE, IMG_SIZE))
-        inputs = np.expand_dims(inputs.transpose(2, 0, 1), 0)
-        outputs.append(model(inputs))
+    with tqdm(total=N_FRAME) as pbar:
+        for frame in read_frames(video_path, N_FRAME):
+            inputs = cv2.resize(src=frame, dsize=(IMG_SIZE, IMG_SIZE))
+            inputs = np.expand_dims(inputs.transpose(2, 0, 1), 0)
+            outputs.append(model(inputs))
+            pbar.update(1)
+
+        frames = pbar.format_dict["n"]
+        seconds = pbar.format_dict["elapsed"]
+
+    print(f"fps: {frames/seconds:.2f}")
     return outputs
 
 
