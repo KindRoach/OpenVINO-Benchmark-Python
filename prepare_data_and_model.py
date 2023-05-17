@@ -1,5 +1,7 @@
+import logging
 import subprocess
 import urllib.request
+from pathlib import Path
 
 import torch
 from openvino.tools.pot import DataLoader
@@ -8,30 +10,41 @@ from openvino.tools.pot import compress_model_weights
 from openvino.tools.pot import create_pipeline
 from openvino.tools.pot import load_model, save_model
 from torch.nn import Module
-from torchvision.models import efficientnet_v2_l, EfficientNet_V2_L_Weights
 
-from utils import IMG_SIZE
+from utils import MODEL_MAP, ModelMeta
 
 
 def download_video() -> None:
-    video_url = "https://s3.amazonaws.com/senkorasic.com/test-media/video/caminandes-llamigos/caminandes_llamigos_1080p.mp4"
-    urllib.request.urlretrieve(video_url, "outputs/video.mp4")
+    video_path = "outputs/video.mp4"
+    if not Path(video_path).exists():
+        logging.info("Downloading Video...")
+        video_url = "https://s3.amazonaws.com/senkorasic.com/test-media/video/caminandes-llamigos/caminandes_llamigos_1080p.mp4"
+        urllib.request.urlretrieve(video_url, video_path)
 
 
-def download_model() -> Module:
-    model = efficientnet_v2_l(weights=EfficientNet_V2_L_Weights.DEFAULT)
+def download_model(model: ModelMeta) -> Module:
+    logging.info("Downloading Model...")
+
+    weight = model.weight
+    load_func = model.load_func
+
+    model = load_func(weights=weight)
     model.eval()
+
     return model
 
 
-def convert_torch_to_openvino(model: Module) -> str:
+def convert_torch_to_openvino(model_meta: ModelMeta, model: Module) -> None:
+    logging.info("Converting Model to OpenVINO...")
+
     # convert to onnx
-    onnx_path = "outputs/model.onnx"
-    dummy_input = torch.randn(1, 3, IMG_SIZE, IMG_SIZE)
+    onnx_path = f"outputs/model/{model_meta.name}/model.onnx"
+    Path(onnx_path).parent.mkdir(parents=True, exist_ok=True)
+    dummy_input = torch.randn(1, *model_meta.input_size)
     torch.onnx.export(model, (dummy_input,), onnx_path)
 
     # convert to openvino
-    openvino_path = "outputs/openvino"
+    openvino_path = f"outputs/model/{model_meta.name}/openvino"
     subprocess.run([
         "mo",
         "--input_model", onnx_path,
@@ -44,11 +57,11 @@ def convert_torch_to_openvino(model: Module) -> str:
         "--output_dir", f"{openvino_path}/fp16"
     ])
 
-    return openvino_path
 
+def quantization(model_meta: ModelMeta) -> None:
+    logging.info("Model Quantization...")
 
-def quantization(openvino_path: str) -> None:
-    dmz_inputs = torch.rand([300, 3, IMG_SIZE, IMG_SIZE], dtype=torch.float32)
+    dmz_inputs = torch.rand([300, *model_meta.input_size], dtype=torch.float32)
 
     class DmzLoader(DataLoader):
         def __init__(self):
@@ -61,11 +74,6 @@ def quantization(openvino_path: str) -> None:
             # annotation is set to None
             return dmz_inputs[index], None
 
-    model = load_model(model_config={
-        "model_name": "model",
-        "model": f"{openvino_path}/fp32/model.xml",
-        "weights": f"{openvino_path}/fp32/model.bin",
-    })
     engine = IEEngine(config={"device": "CPU"}, data_loader=DmzLoader())
     algorithms = [
         {
@@ -78,20 +86,30 @@ def quantization(openvino_path: str) -> None:
         }
     ]
     pipeline = create_pipeline(algorithms, engine)
+
+    model = load_model(model_config={
+        "model_name": "model",
+        "model": f"outputs/model/{model_meta.name}/openvino/fp32/model.xml",
+        "weights": f"outputs/model/{model_meta.name}/openvino/fp32/model.bin",
+    })
     compressed_model = pipeline.run(model=model)
+
     compress_model_weights(compressed_model)
+
     save_model(
         model=compressed_model,
-        save_path=f"{openvino_path}/int8",
+        save_path=f"outputs/model/{model_meta.name}/openvino/int8",
         model_name="model",
     )
 
 
 def main():
     download_video()
-    model = download_model()
-    path = convert_torch_to_openvino(model)
-    quantization(path)
+    for model_meta in MODEL_MAP.values():
+        model = download_model(model_meta)
+
+        convert_torch_to_openvino(model_meta, model)
+        quantization(model_meta)
 
 
 if __name__ == '__main__':

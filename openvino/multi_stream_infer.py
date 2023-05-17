@@ -8,18 +8,18 @@ import numpy as np
 from openvino.runtime import Core, CompiledModel
 from tqdm import tqdm
 
-from utils import read_frames, IMG_SIZE
+from utils import read_frames, MODEL_MAP, ModelMeta
 
 N_FRAME = 1000
 
 
-def multi_stream_infer(model: CompiledModel, video_path: str, n_stream: int) -> np.array:
+def multi_stream_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, n_stream: int) -> np.array:
     frame_count = N_FRAME // n_stream
     with tqdm(total=frame_count * n_stream) as pbar:
         def infer_stream(thread_id: int):
             output = []
             for frame_id, frame in enumerate(itertools.islice(read_frames(video_path, N_FRAME), frame_count)):
-                inputs = cv2.resize(src=frame, dsize=(IMG_SIZE, IMG_SIZE))
+                inputs = cv2.resize(src=frame, dsize=model_meta.input_size[-2:])
                 inputs = np.expand_dims(inputs.transpose(2, 0, 1), 0)
                 output.append(model(inputs))
                 # pbar.write(f"thread {thread_id} frame {frame_id} done")
@@ -42,17 +42,19 @@ def main(args) -> None:
         "PERFORMANCE_HINT": "THROUGHPUT"
     })
 
-    model_xml = f"outputs/openvino/{args.model_type}/model.xml"
+    model_meta = MODEL_MAP[args.model]
+    model_xml = f"outputs/model/{model_meta.name}/openvino/{args.model_precision}/model.xml"
     compiled_model = ie.compile_model(model_xml, device_name=args.device)
     video_path = "outputs/video.mp4"
-    multi_stream_infer(compiled_model, video_path, args.n_stream)
+    multi_stream_infer(compiled_model, model_meta, video_path, args.n_stream)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--device", type=str, default="CPU",
                         choices=["CPU", "GPU"] + [f"GPU.{i}" for i in range(8)])
-    parser.add_argument("-m", "--model_type", type=str, default="int8", choices=["fp32", "fp16", "int8"])
+    parser.add_argument("-m", "--model", type=str, default="resnet_50", choices=list(MODEL_MAP.keys()))
+    parser.add_argument("-p", "--model_precision", type=str, default="int8", choices=["fp32", "fp16", "int8"])
     parser.add_argument("-n", "--n_stream", type=int, default=os.cpu_count())
     args = parser.parse_args()
 
