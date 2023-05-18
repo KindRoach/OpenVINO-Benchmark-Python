@@ -18,7 +18,10 @@ def download_video() -> None:
     video_path = "outputs/video.mp4"
     if not Path(video_path).exists():
         logging.info("Downloading Video...")
-        video_url = "https://s3.amazonaws.com/senkorasic.com/test-media/video/caminandes-llamigos/caminandes_llamigos_1080p.mp4"
+        opener = urllib.request.build_opener()
+        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+        urllib.request.install_opener(opener)
+        video_url = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_30MB.mp4"
         urllib.request.urlretrieve(video_url, video_path)
 
 
