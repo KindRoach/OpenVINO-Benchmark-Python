@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass
 from typing import Tuple, Callable, Dict
 
@@ -30,15 +31,14 @@ MODEL_MAP: Dict[str, ModelMeta] = {
 }
 
 
-def read_frames(video_path: str, n_frame: int):
+def read_frames(video_path: str, seconds: int):
     cap = cv2.VideoCapture(video_path)
     assert cap.isOpened()
 
-    i = 0
-    while i < n_frame:
+    start_time = time.time()
+    while time.time() - start_time < seconds:
         success, frame = cap.read()
         if success:
-            i += 1
             yield frame
         else:
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
