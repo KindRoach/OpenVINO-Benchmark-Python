@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
-from opencv import sync_decode, multi_stream_decode
+from opencv_benchmark import sync_decode, multi_stream_decode
 
 
 class TestingSyncDecode(unittest.TestCase):

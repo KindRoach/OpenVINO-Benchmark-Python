@@ -3,7 +3,7 @@
 trap "exit" INT TERM ERR
 trap "kill 0" EXIT
 
-method=${1:-opencv.sync_decode}
+method=${1:-opencv_benchmark.sync_decode}
 run_id=$(date "+%Y-%m-%d-%H-%M-%S")
 n_core=$(nproc --all)
 n_process_list=()
