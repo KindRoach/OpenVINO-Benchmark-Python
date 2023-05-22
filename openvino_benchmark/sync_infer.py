@@ -1,4 +1,6 @@
 import argparse
+import sys
+from typing import List
 
 import cv2
 import numpy as np
@@ -33,13 +35,16 @@ def main(args) -> None:
     sync_infer(compiled_model, model_meta, video_path, args.run_time)
 
 
-if __name__ == '__main__':
+def parse_ages(args: List[str]):
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--device", type=str, default="CPU",
                         choices=["CPU", "GPU"] + [f"GPU.{i}" for i in range(8)])
     parser.add_argument("-m", "--model", type=str, default="resnet_50", choices=list(MODEL_MAP.keys()))
     parser.add_argument("-p", "--model_precision", type=str, default="int8", choices=["fp32", "fp16", "int8"])
     parser.add_argument("-t", "--run_time", type=int, default=60)
-    args = parser.parse_args()
+    return parser.parse_args(args)
 
+
+if __name__ == '__main__':
+    args = parse_ages(sys.argv[1:])
     main(args)

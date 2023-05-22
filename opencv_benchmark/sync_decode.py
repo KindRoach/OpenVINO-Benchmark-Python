@@ -1,4 +1,6 @@
 import argparse
+import sys
+from typing import List
 
 from tqdm import tqdm
 
@@ -17,9 +19,12 @@ def main(args) -> None:
     print(f"fps: {frames / seconds:.2f}")
 
 
-if __name__ == '__main__':
+def parse_ages(args: List[str]):
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--run_time", type=int, default=60)
-    args = parser.parse_args()
+    return parser.parse_args(args)
 
+
+if __name__ == '__main__':
+    args = parse_ages(sys.argv[1:])
     main(args)
