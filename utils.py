@@ -44,3 +44,16 @@ def read_frames(video_path: str, seconds: int):
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     cap.release()
+
+
+def read_all_frames(video_path: str):
+    cap = cv2.VideoCapture(video_path)
+    assert cap.isOpened()
+    while True:
+        success, frame = cap.read()
+        if success:
+            yield frame
+        else:
+            break
+
+    cap.release()

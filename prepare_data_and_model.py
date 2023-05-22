@@ -3,6 +3,7 @@ import subprocess
 import urllib.request
 from pathlib import Path
 
+import cv2
 import torch
 from openvino.tools.pot import DataLoader
 from openvino.tools.pot import IEEngine
@@ -11,7 +12,7 @@ from openvino.tools.pot import create_pipeline
 from openvino.tools.pot import load_model, save_model
 from torch.nn import Module
 
-from utils import MODEL_MAP, ModelMeta
+from utils import MODEL_MAP, ModelMeta, read_all_frames
 
 
 def download_video() -> None:
@@ -63,27 +64,32 @@ def convert_torch_to_openvino(model_meta: ModelMeta, model: Module) -> None:
 
 def quantization(model_meta: ModelMeta) -> None:
     logging.info("Model Quantization...")
-
-    dmz_inputs = torch.rand([300, *model_meta.input_size], dtype=torch.float32)
+    video_path = "outputs/video.mp4"
 
     class DmzLoader(DataLoader):
         def __init__(self):
             super().__init__(None)
+            self._data = []
+            for frame in read_all_frames(video_path):
+                frame = cv2.resize(src=frame, dsize=model_meta.input_size[-2:])
+                frame = frame.transpose(2, 0, 1)
+                self._data.append(frame)
 
         def __len__(self):
-            return len(dmz_inputs)
+            return len(self._data)
 
         def __getitem__(self, index):
             # annotation is set to None
-            return dmz_inputs[index], None
+            return self._data[index], None
 
-    engine = IEEngine(config={"device": "CPU"}, data_loader=DmzLoader())
+    data_loader = DmzLoader()
+    engine = IEEngine(config={"device": "CPU"}, data_loader=data_loader)
     algorithms = [
         {
             "name": "DefaultQuantization",
             "params": {
                 "target_device": "ANY",
-                "stat_subset_size": 300,
+                "stat_subset_size": len(data_loader),
                 "stat_batch_size": 1
             },
         }
