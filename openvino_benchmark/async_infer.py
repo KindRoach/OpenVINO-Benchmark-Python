@@ -4,13 +4,11 @@ import sys
 from threading import Lock
 from typing import List
 
-import cv2
-import numpy as np
 import openvino.runtime as ov
 from openvino.runtime import Core, CompiledModel
 from tqdm import tqdm
 
-from utils import read_frames, MODEL_MAP, ModelMeta
+from utils import read_frames, MODEL_MAP, ModelMeta, preprocess
 
 
 def async_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, runtime: int, n_jobs: int) -> list:
@@ -27,8 +25,7 @@ def async_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, ru
         infer_queue.set_callback(call_back)
 
         for i, frame in enumerate(read_frames(video_path, runtime)):
-            inputs = cv2.resize(src=frame, dsize=model_meta.input_size[-2:])
-            inputs = np.expand_dims(inputs.transpose(2, 0, 1), 0)
+            inputs = preprocess(frame, model_meta)
             infer_queue.start_async(inputs, i)
 
         infer_queue.wait_all()

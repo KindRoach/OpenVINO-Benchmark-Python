@@ -2,21 +2,18 @@ import argparse
 import sys
 from typing import List
 
-import cv2
-import numpy as np
 from openvino.runtime import CompiledModel, Core
 from tqdm import tqdm
 
-from utils import read_frames, MODEL_MAP, ModelMeta
+from utils import read_frames, MODEL_MAP, ModelMeta, preprocess
 
 
 def sync_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, runtime: int) -> list:
     outputs = []
     with tqdm(unit="frame") as pbar:
         for frame in read_frames(video_path, runtime):
-            inputs = cv2.resize(src=frame, dsize=model_meta.input_size[-2:])
-            inputs = np.expand_dims(inputs.transpose(2, 0, 1), 0)
-            outputs.append(model(inputs))
+            inputs = preprocess(frame, model_meta)
+            outputs.append(model(inputs)[model.output(0)])
             pbar.update(1)
 
         frames = pbar.format_dict["n"]

@@ -4,26 +4,23 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
-import cv2
-import numpy as np
 from openvino.runtime import Core, CompiledModel
 from tqdm import tqdm
 
-from utils import read_frames, MODEL_MAP, ModelMeta
+from utils import read_frames, MODEL_MAP, ModelMeta, preprocess
 
 
 def multi_stream_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, runtime: int,
                        n_stream: int) -> list:
     with tqdm(unit="frame") as pbar:
         def infer_stream(thread_id: int):
-            output = []
+            outputs = []
             for frame_id, frame in enumerate(read_frames(video_path, runtime)):
-                inputs = cv2.resize(src=frame, dsize=model_meta.input_size[-2:])
-                inputs = np.expand_dims(inputs.transpose(2, 0, 1), 0)
-                output.append(model(inputs))
+                inputs = preprocess(frame, model_meta)
+                outputs.append(model(inputs)[model.output(0)])
                 # pbar.write(f"thread {thread_id} frame {frame_id} done")
                 pbar.update(1)
-            return output
+            return outputs
 
         with ThreadPoolExecutor(n_stream) as pool:
             tasks = []
