@@ -35,10 +35,7 @@ def async_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, ru
 
 def main(args) -> None:
     ie = Core()
-    ie.set_property("CPU", {
-        "NUM_STREAMS": args.infer_jobs,
-        "PERFORMANCE_HINT": "THROUGHPUT"
-    })
+    ie.set_property("CPU", {"PERFORMANCE_HINT": "THROUGHPUT"})
 
     model_meta = MODEL_MAP[args.model]
     model_xml = f"outputs/model/{model_meta.name}/openvino/{args.model_precision}/model.xml"

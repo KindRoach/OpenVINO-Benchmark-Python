@@ -15,9 +15,12 @@ def multi_stream_infer(model: CompiledModel, model_meta: ModelMeta, video_path: 
     with tqdm(unit="frame") as pbar:
         def infer_stream(thread_id: int):
             outputs = []
+            infer_req = model.create_infer_request()
             for frame_id, frame in enumerate(read_frames(video_path, runtime)):
-                inputs = preprocess(frame, model_meta)
-                outputs.append(model(inputs)[model.output(0)])
+                input_frame = preprocess(frame, model_meta)
+                infer_req.infer(input_frame)
+                output = infer_req.get_output_tensor().data
+                outputs.append(output)
                 # pbar.write(f"thread {thread_id} frame {frame_id} done")
                 pbar.update(1)
             return outputs
@@ -33,10 +36,7 @@ def multi_stream_infer(model: CompiledModel, model_meta: ModelMeta, video_path: 
 
 def main(args) -> None:
     ie = Core()
-    ie.set_property("CPU", {
-        "NUM_STREAMS": args.n_stream,
-        "PERFORMANCE_HINT": "THROUGHPUT"
-    })
+    ie.set_property("CPU", {"PERFORMANCE_HINT": "THROUGHPUT"})
 
     model_meta = MODEL_MAP[args.model]
     model_xml = f"outputs/model/{model_meta.name}/openvino/{args.model_precision}/model.xml"

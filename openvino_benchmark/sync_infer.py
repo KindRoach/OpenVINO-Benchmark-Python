@@ -11,9 +11,12 @@ from utils import read_frames, MODEL_MAP, ModelMeta, preprocess
 def sync_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, runtime: int) -> list:
     outputs = []
     with tqdm(unit="frame") as pbar:
+        infer_req = model.create_infer_request()
         for frame in read_frames(video_path, runtime):
-            inputs = preprocess(frame, model_meta)
-            outputs.append(model(inputs)[model.output(0)])
+            input_frame = preprocess(frame, model_meta)
+            infer_req.infer(input_frame)
+            output = infer_req.get_output_tensor().data
+            outputs.append(output)
             pbar.update(1)
 
         frames = pbar.format_dict["n"]
