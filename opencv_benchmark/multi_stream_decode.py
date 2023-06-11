@@ -26,7 +26,7 @@ def main(args) -> None:
     print(f"fps: {frames / seconds:.2f}")
 
 
-def parse_ages(args: List[str]):
+def parse_args(args: List[str]):
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", "--n_stream", type=int, default=os.cpu_count())
     parser.add_argument("-t", "--run_time", type=int, default=60)
@@ -34,5 +34,5 @@ def parse_ages(args: List[str]):
 
 
 if __name__ == '__main__':
-    args = parse_ages(sys.argv[1:])
+    args = parse_args(sys.argv[1:])
     main(args)

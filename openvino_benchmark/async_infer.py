@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import sys
 from threading import Lock
@@ -44,7 +45,7 @@ def main(args) -> None:
     async_infer(compiled_model, model_meta, video_path, args.run_time, args.infer_jobs)
 
 
-def parse_ages(args: List[str]):
+def parse_args(args: List[str]):
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--device", type=str, default="CPU",
                         choices=["CPU", "GPU"] + [f"GPU.{i}" for i in range(8)])
@@ -56,5 +57,5 @@ def parse_ages(args: List[str]):
 
 
 if __name__ == '__main__':
-    args = parse_ages(sys.argv[1:])
+    args = parse_args(sys.argv[1:])
     main(args)
