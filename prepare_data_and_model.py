@@ -3,16 +3,14 @@ import subprocess
 import urllib.request
 from pathlib import Path
 
-import cv2
+import nncf
+import numpy
+import openvino.runtime as ov
 import torch
-from openvino.tools.pot import DataLoader
-from openvino.tools.pot import IEEngine
-from openvino.tools.pot import compress_model_weights
-from openvino.tools.pot import create_pipeline
-from openvino.tools.pot import load_model, save_model
 from torch.nn import Module
+from torch.utils.data import DataLoader, TensorDataset
 
-from utils import MODEL_MAP, ModelMeta, read_all_frames
+from utils import MODEL_MAP, ModelMeta, read_all_frames, preprocess
 
 
 def download_video() -> None:
@@ -52,71 +50,42 @@ def convert_torch_to_openvino(model_meta: ModelMeta, model: Module) -> None:
     subprocess.run([
         "mo",
         "--input_model", onnx_path,
-        "--output_dir", f"{openvino_path}/fp32"
+        "--output_dir", f"{openvino_path}/fp32",
+        "--log_level", "ERROR"
     ])
     subprocess.run([
         "mo",
         "--compress_to_fp16",
         "--input_model", onnx_path,
-        "--output_dir", f"{openvino_path}/fp16"
+        "--output_dir", f"{openvino_path}/fp16",
+        "--log_level", "ERROR"
     ])
 
 
 def quantization(model_meta: ModelMeta) -> None:
-    logging.info("Model Quantization...")
+    logging.info(f"{model_meta.name} Model Quantization...")
+
+    frames = []
     video_path = "outputs/video.mp4"
+    for frame in read_all_frames(video_path):
+        frame = preprocess(frame, model_meta)[0]
+        frames.append(frame)
 
-    class DmzLoader(DataLoader):
-        def __init__(self):
-            super().__init__(None)
-            self._data = []
-            for frame in read_all_frames(video_path):
-                frame = cv2.resize(src=frame, dsize=model_meta.input_size[-2:])
-                frame = frame.transpose(2, 0, 1)
-                self._data.append(frame)
+    frames = torch.tensor(numpy.array(frames))
+    dataloader = DataLoader(TensorDataset(frames), batch_size=1)
+    dataset = nncf.Dataset(dataloader, lambda item: item[0].numpy())
 
-        def __len__(self):
-            return len(self._data)
-
-        def __getitem__(self, index):
-            # annotation is set to None
-            return self._data[index], None
-
-    data_loader = DmzLoader()
-    engine = IEEngine(config={"device": "CPU"}, data_loader=data_loader)
-    algorithms = [
-        {
-            "name": "DefaultQuantization",
-            "params": {
-                "target_device": "ANY",
-                "stat_subset_size": len(data_loader),
-                "stat_batch_size": 1
-            },
-        }
-    ]
-    pipeline = create_pipeline(algorithms, engine)
-
-    model = load_model(model_config={
-        "model_name": "model",
-        "model": f"outputs/model/{model_meta.name}/openvino/fp32/model.xml",
-        "weights": f"outputs/model/{model_meta.name}/openvino/fp32/model.bin",
-    })
-    compressed_model = pipeline.run(model=model)
-
-    compress_model_weights(compressed_model)
-
-    save_model(
-        model=compressed_model,
-        save_path=f"outputs/model/{model_meta.name}/openvino/int8",
-        model_name="model",
-    )
+    model_fp32_xml = f"outputs/model/{model_meta.name}/openvino/fp32/model.xml"
+    model_int8_xml = f"outputs/model/{model_meta.name}/openvino/int8/model.xml"
+    model_fp32 = ov.Core().read_model(model_fp32_xml)
+    model_int8 = nncf.quantize(model_fp32, dataset)
+    ov.serialize(model_int8, model_int8_xml)
 
 
 def main():
     download_video()
     for model_meta in MODEL_MAP.values():
         model = download_model(model_meta)
-
         convert_torch_to_openvino(model_meta, model)
         quantization(model_meta)
 
