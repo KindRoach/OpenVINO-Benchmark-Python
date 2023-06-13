@@ -7,6 +7,7 @@ import numpy
 from torchvision.models import resnet50, ResNet50_Weights, efficientnet_v2_l, EfficientNet_V2_L_Weights
 from torchvision.models._api import Weights
 
+OV_MODEL_PATH_PATTERN = "outputs/model/%s/%s/model.xml"
 
 @dataclass
 class ModelMeta:

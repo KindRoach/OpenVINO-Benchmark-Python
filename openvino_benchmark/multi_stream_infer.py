@@ -7,7 +7,7 @@ from typing import List
 from openvino.runtime import Core, CompiledModel
 from tqdm import tqdm
 
-from utils import read_frames, MODEL_MAP, ModelMeta, preprocess
+from utils import read_frames, MODEL_MAP, ModelMeta, preprocess, OV_MODEL_PATH_PATTERN
 
 
 def multi_stream_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, runtime: int,
@@ -39,7 +39,7 @@ def main(args) -> None:
     ie.set_property("CPU", {"PERFORMANCE_HINT": "THROUGHPUT"})
 
     model_meta = MODEL_MAP[args.model]
-    model_xml = f"outputs/model/{model_meta.name}/openvino/{args.model_precision}/model.xml"
+    model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, args.model_precision)
     compiled_model = ie.compile_model(model_xml, device_name=args.device)
     video_path = "outputs/video.mp4"
     multi_stream_infer(compiled_model, model_meta, video_path, args.run_time, args.n_stream)

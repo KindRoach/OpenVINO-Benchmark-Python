@@ -1,5 +1,4 @@
 import logging
-import subprocess
 import urllib.request
 from pathlib import Path
 
@@ -7,10 +6,11 @@ import nncf
 import numpy
 import openvino.runtime as ov
 import torch
+from openvino.tools import mo
 from torch.nn import Module
 from torch.utils.data import DataLoader, TensorDataset
 
-from utils import MODEL_MAP, ModelMeta, read_all_frames, preprocess
+from utils import MODEL_MAP, ModelMeta, read_all_frames, preprocess, OV_MODEL_PATH_PATTERN
 
 
 def download_video() -> None:
@@ -39,27 +39,14 @@ def download_model(model: ModelMeta) -> Module:
 def convert_torch_to_openvino(model_meta: ModelMeta, model: Module) -> None:
     logging.info("Converting Model to OpenVINO...")
 
-    # convert to onnx
-    onnx_path = f"outputs/model/{model_meta.name}/model.onnx"
-    Path(onnx_path).parent.mkdir(parents=True, exist_ok=True)
-    dummy_input = torch.randn(1, *model_meta.input_size)
-    torch.onnx.export(model, (dummy_input,), onnx_path)
+    model_fp32 = mo.convert_model(model, input_shape=(1, *model_meta.input_size))
+    model_fp32_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, "fp32")
+    Path(model_fp32_xml).parent.mkdir(parents=True, exist_ok=True)
+    ov.serialize(model_fp32, model_fp32_xml)
 
-    # convert to openvino
-    openvino_path = f"outputs/model/{model_meta.name}/openvino"
-    subprocess.run([
-        "mo",
-        "--input_model", onnx_path,
-        "--output_dir", f"{openvino_path}/fp32",
-        "--log_level", "ERROR"
-    ])
-    subprocess.run([
-        "mo",
-        "--compress_to_fp16",
-        "--input_model", onnx_path,
-        "--output_dir", f"{openvino_path}/fp16",
-        "--log_level", "ERROR"
-    ])
+    model_fp16 = mo.convert_model(model, input_shape=(1, *model_meta.input_size), compress_to_fp16=True)
+    model_fp16_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, "fp16")
+    ov.serialize(model_fp16, model_fp16_xml)
 
 
 def quantization(model_meta: ModelMeta) -> None:
@@ -75,8 +62,8 @@ def quantization(model_meta: ModelMeta) -> None:
     dataloader = DataLoader(TensorDataset(frames), batch_size=1)
     dataset = nncf.Dataset(dataloader, lambda item: item[0].numpy())
 
-    model_fp32_xml = f"outputs/model/{model_meta.name}/openvino/fp32/model.xml"
-    model_int8_xml = f"outputs/model/{model_meta.name}/openvino/int8/model.xml"
+    model_fp32_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, "fp32")
+    model_int8_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, "int8")
     model_fp32 = ov.Core().read_model(model_fp32_xml)
     model_int8 = nncf.quantize(model_fp32, dataset)
     ov.serialize(model_int8, model_int8_xml)
