@@ -13,7 +13,6 @@ from utils import MODEL_MAP, ModelMeta, OV_MODEL_PATH_PATTERN, read_preprocessed
 def multi_stream_infer(
         model: CompiledModel,
         model_meta: ModelMeta,
-        video_path: str,
         runtime: int,
         inference_only: bool,
         n_stream: int) -> list:
@@ -21,7 +20,7 @@ def multi_stream_infer(
         def infer_stream(thread_id: int):
             outputs = []
             infer_req = model.create_infer_request()
-            frames = read_preprocessed_frame_with_time(video_path, runtime, model_meta, inference_only)
+            frames = read_preprocessed_frame_with_time(runtime, model_meta, inference_only)
             for frame_id, frame in enumerate(frames):
                 infer_req.infer(frame)
                 output = infer_req.get_output_tensor().data
@@ -46,8 +45,7 @@ def main(args) -> None:
     model_meta = MODEL_MAP[args.model]
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, args.model_precision)
     compiled_model = ie.compile_model(model_xml, device_name=args.device)
-    video_path = "outputs/video.mp4"
-    multi_stream_infer(compiled_model, model_meta, video_path, args.run_time, args.inference_only, args.n_stream)
+    multi_stream_infer(compiled_model, model_meta, args.run_time, args.inference_only, args.n_stream)
 
 
 def parse_args(args: List[str]):

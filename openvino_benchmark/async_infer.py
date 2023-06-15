@@ -13,7 +13,6 @@ from utils import MODEL_MAP, ModelMeta, OV_MODEL_PATH_PATTERN, read_preprocessed
 def async_infer(
         model: CompiledModel,
         model_meta: ModelMeta,
-        video_path: str,
         runtime: int,
         inference_only) -> list:
     outputs = dict()
@@ -29,7 +28,7 @@ def async_infer(
         infer_queue = ov.AsyncInferQueue(model)
         infer_queue.set_callback(call_back)
 
-        frames = read_preprocessed_frame_with_time(video_path, runtime, model_meta, inference_only)
+        frames = read_preprocessed_frame_with_time(runtime, model_meta, inference_only)
         for i, frame in enumerate(frames):
             infer_queue.start_async(frame, i)
 
@@ -45,8 +44,7 @@ def main(args) -> None:
     model_meta = MODEL_MAP[args.model]
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, args.model_precision)
     compiled_model = ie.compile_model(model_xml, device_name=args.device)
-    video_path = "outputs/video.mp4"
-    async_infer(compiled_model, model_meta, video_path, args.run_time, args.inference_only)
+    async_infer(compiled_model, model_meta, args.run_time, args.inference_only)
 
 
 def parse_args(args: List[str]):

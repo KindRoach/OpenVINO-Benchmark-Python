@@ -11,13 +11,12 @@ from utils import MODEL_MAP, ModelMeta, OV_MODEL_PATH_PATTERN, read_preprocessed
 def sync_infer(
         model: CompiledModel,
         model_meta: ModelMeta,
-        video_path: str,
         runtime: int,
         inference_only: bool) -> list:
     outputs = []
     with tqdm(unit="frame") as pbar:
         infer_req = model.create_infer_request()
-        for frame in read_preprocessed_frame_with_time(video_path, runtime, model_meta, inference_only):
+        for frame in read_preprocessed_frame_with_time(runtime, model_meta, inference_only):
             infer_req.infer(frame)
             output = infer_req.get_output_tensor().data
             outputs.append(output)
@@ -35,8 +34,7 @@ def main(args) -> None:
     model_meta = MODEL_MAP[args.model]
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, args.model_precision)
     compiled_model = ie.compile_model(model_xml, device_name=args.device)
-    video_path = "outputs/video.mp4"
-    sync_infer(compiled_model, model_meta, video_path, args.run_time, args.inference_only)
+    sync_infer(compiled_model, model_meta, args.run_time, args.inference_only)
 
 
 def parse_args(args: List[str]):

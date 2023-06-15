@@ -10,18 +10,17 @@ from openvino.tools import mo
 from torch.nn import Module
 from torch.utils.data import DataLoader, TensorDataset
 
-from utils import MODEL_MAP, ModelMeta, read_all_frames, preprocess, OV_MODEL_PATH_PATTERN
+from utils import MODEL_MAP, ModelMeta, read_all_frames, preprocess, OV_MODEL_PATH_PATTERN, VIDEO_PATH
 
 
 def download_video() -> None:
-    video_path = "outputs/video.mp4"
-    if not Path(video_path).exists():
+    if not Path(VIDEO_PATH).exists():
         logging.info("Downloading Video...")
         opener = urllib.request.build_opener()
         opener.addheaders = [('User-agent', 'Mozilla/5.0')]
         urllib.request.install_opener(opener)
         video_url = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_30MB.mp4"
-        urllib.request.urlretrieve(video_url, video_path)
+        urllib.request.urlretrieve(video_url, VIDEO_PATH)
 
 
 def download_model(model: ModelMeta) -> Module:
@@ -53,8 +52,7 @@ def quantization(model_meta: ModelMeta) -> None:
     logging.info(f"{model_meta.name} Model Quantization...")
 
     frames = []
-    video_path = "outputs/video.mp4"
-    for frame in read_all_frames(video_path):
+    for frame in read_all_frames():
         frame = preprocess(frame, model_meta)[0]
         frames.append(frame)
 

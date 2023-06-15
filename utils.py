@@ -8,6 +8,7 @@ from torchvision.models import resnet50, ResNet50_Weights, efficientnet_v2_l, Ef
 from torchvision.models._api import Weights
 
 OV_MODEL_PATH_PATTERN = "outputs/model/%s/%s/model.xml"
+VIDEO_PATH = "outputs/video.mp4"
 
 
 @dataclass
@@ -40,8 +41,8 @@ MODEL_MAP: Dict[str, ModelMeta] = {
 }
 
 
-def read_endless_frames(video_path: str):
-    cap = cv2.VideoCapture(video_path)
+def read_endless_frames():
+    cap = cv2.VideoCapture(VIDEO_PATH)
     assert cap.isOpened()
 
     while True:
@@ -54,8 +55,8 @@ def read_endless_frames(video_path: str):
     cap.release()
 
 
-def read_all_frames(video_path: str):
-    cap = cv2.VideoCapture(video_path)
+def read_all_frames():
+    cap = cv2.VideoCapture(VIDEO_PATH)
     assert cap.isOpened()
     while True:
         success, frame = cap.read()
@@ -77,16 +78,16 @@ def preprocess(frame, model_meta: ModelMeta) -> numpy.ndarray:
     return frame
 
 
-def read_frames_with_time(video_path: str, seconds: int):
-    endless_frames = iter(read_endless_frames(video_path))
+def read_frames_with_time(seconds: int):
+    endless_frames = iter(read_endless_frames())
 
     start_time = time.time()
     while time.time() - start_time < seconds:
         yield next(endless_frames)
 
 
-def read_preprocessed_frame_with_time(video_path: str, seconds: int, model_meta: ModelMeta, inference_only: bool):
-    endless_frames = iter(read_endless_frames(video_path))
+def read_preprocessed_frame_with_time(seconds: int, model_meta: ModelMeta, inference_only: bool):
+    endless_frames = iter(read_endless_frames())
     random_input = numpy.random.rand(1, *model_meta.input_size)
 
     start_time = time.time()

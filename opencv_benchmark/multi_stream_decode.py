@@ -10,10 +10,9 @@ from utils import read_frames_with_time
 
 
 def main(args) -> None:
-    video_path = "outputs/video.mp4"
     with tqdm(unit="frame") as pbar:
         def decode_stream(idx: int):
-            for frame in read_frames_with_time(video_path, args.run_time):
+            for frame in read_frames_with_time(args.run_time):
                 pbar.update(1)
 
         with ThreadPoolExecutor(args.n_stream) as pool:
