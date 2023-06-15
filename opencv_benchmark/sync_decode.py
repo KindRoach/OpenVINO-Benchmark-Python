@@ -4,13 +4,13 @@ from typing import List
 
 from tqdm import tqdm
 
-from utils import read_frames
+from utils import read_frames_with_time
 
 
 def main(args) -> None:
     video_path = "outputs/video.mp4"
     with tqdm(unit="frame") as pbar:
-        for frame in read_frames(video_path, args.run_time):
+        for frame in read_frames_with_time(video_path, args.run_time):
             pbar.update(1)
 
         frames = pbar.format_dict["n"]

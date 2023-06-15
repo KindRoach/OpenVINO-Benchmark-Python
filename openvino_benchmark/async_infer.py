@@ -1,5 +1,4 @@
 import argparse
-import os
 import sys
 from threading import Lock
 from typing import List
@@ -8,25 +7,31 @@ import openvino.runtime as ov
 from openvino.runtime import Core, CompiledModel
 from tqdm import tqdm
 
-from utils import read_frames, MODEL_MAP, ModelMeta, preprocess, OV_MODEL_PATH_PATTERN
+from utils import MODEL_MAP, ModelMeta, OV_MODEL_PATH_PATTERN, read_preprocessed_frame_with_time
 
 
-def async_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, runtime: int, n_jobs: int) -> list:
+def async_infer(
+        model: CompiledModel,
+        model_meta: ModelMeta,
+        video_path: str,
+        runtime: int,
+        inference_only) -> list:
     outputs = dict()
     lock = Lock()
     with tqdm(unit="frame") as pbar:
         def call_back(request, userdata):
             with lock:
-                outputs[userdata] = request.get_output_tensor().data
+                frame_id = userdata
+                outputs[frame_id] = request.get_output_tensor().data
             # pbar.write(f"frame {userdata} done!")
             pbar.update(1)
 
-        infer_queue = ov.AsyncInferQueue(model, n_jobs)
+        infer_queue = ov.AsyncInferQueue(model)
         infer_queue.set_callback(call_back)
 
-        for i, frame in enumerate(read_frames(video_path, runtime)):
-            inputs = preprocess(frame, model_meta)
-            infer_queue.start_async(inputs, i)
+        frames = read_preprocessed_frame_with_time(video_path, runtime, model_meta, inference_only)
+        for i, frame in enumerate(frames):
+            infer_queue.start_async(frame, i)
 
         infer_queue.wait_all()
 
@@ -41,7 +46,7 @@ def main(args) -> None:
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, args.model_precision)
     compiled_model = ie.compile_model(model_xml, device_name=args.device)
     video_path = "outputs/video.mp4"
-    async_infer(compiled_model, model_meta, video_path, args.run_time, args.infer_jobs)
+    async_infer(compiled_model, model_meta, video_path, args.run_time, args.inference_only)
 
 
 def parse_args(args: List[str]):
@@ -50,7 +55,7 @@ def parse_args(args: List[str]):
                         choices=["CPU", "GPU"] + [f"GPU.{i}" for i in range(8)])
     parser.add_argument("-m", "--model", type=str, default="resnet_50", choices=list(MODEL_MAP.keys()))
     parser.add_argument("-p", "--model_precision", type=str, default="int8", choices=["fp32", "fp16", "int8"])
-    parser.add_argument("-n", "--infer_jobs", type=int, default=os.cpu_count())
+    parser.add_argument("-io", "--inference_only", action="store_true", default=False)
     parser.add_argument("-t", "--run_time", type=int, default=60)
     return parser.parse_args(args)
 

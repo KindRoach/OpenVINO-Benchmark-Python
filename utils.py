@@ -9,6 +9,7 @@ from torchvision.models._api import Weights
 
 OV_MODEL_PATH_PATTERN = "outputs/model/%s/%s/model.xml"
 
+
 @dataclass
 class ModelMeta:
     name: str
@@ -39,12 +40,11 @@ MODEL_MAP: Dict[str, ModelMeta] = {
 }
 
 
-def read_frames(video_path: str, seconds: int):
+def read_endless_frames(video_path: str):
     cap = cv2.VideoCapture(video_path)
     assert cap.isOpened()
 
-    start_time = time.time()
-    while time.time() - start_time < seconds:
+    while True:
         success, frame = cap.read()
         if success:
             yield frame
@@ -75,3 +75,24 @@ def preprocess(frame, model_meta: ModelMeta) -> numpy.ndarray:
     frame = (frame - mean[:, None, None]) / std[:, None, None]
     frame = numpy.expand_dims(frame, 0)
     return frame
+
+
+def read_frames_with_time(video_path: str, seconds: int):
+    endless_frames = iter(read_endless_frames(video_path))
+
+    start_time = time.time()
+    while time.time() - start_time < seconds:
+        yield next(endless_frames)
+
+
+def read_preprocessed_frame_with_time(video_path: str, seconds: int, model_meta: ModelMeta, inference_only: bool):
+    endless_frames = iter(read_endless_frames(video_path))
+    random_input = numpy.random.rand(1, *model_meta.input_size)
+
+    start_time = time.time()
+    while time.time() - start_time < seconds:
+        if inference_only:
+            yield random_input
+        else:
+            frame = next(endless_frames)
+            yield preprocess(frame, model_meta)

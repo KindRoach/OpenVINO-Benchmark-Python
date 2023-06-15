@@ -5,16 +5,20 @@ from typing import List
 from openvino.runtime import CompiledModel, Core
 from tqdm import tqdm
 
-from utils import read_frames, MODEL_MAP, ModelMeta, preprocess, OV_MODEL_PATH_PATTERN
+from utils import MODEL_MAP, ModelMeta, OV_MODEL_PATH_PATTERN, read_preprocessed_frame_with_time
 
 
-def sync_infer(model: CompiledModel, model_meta: ModelMeta, video_path: str, runtime: int) -> list:
+def sync_infer(
+        model: CompiledModel,
+        model_meta: ModelMeta,
+        video_path: str,
+        runtime: int,
+        inference_only: bool) -> list:
     outputs = []
     with tqdm(unit="frame") as pbar:
         infer_req = model.create_infer_request()
-        for frame in read_frames(video_path, runtime):
-            input_frame = preprocess(frame, model_meta)
-            infer_req.infer(input_frame)
+        for frame in read_preprocessed_frame_with_time(video_path, runtime, model_meta, inference_only):
+            infer_req.infer(frame)
             output = infer_req.get_output_tensor().data
             outputs.append(output)
             pbar.update(1)
@@ -32,7 +36,7 @@ def main(args) -> None:
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, args.model_precision)
     compiled_model = ie.compile_model(model_xml, device_name=args.device)
     video_path = "outputs/video.mp4"
-    sync_infer(compiled_model, model_meta, video_path, args.run_time)
+    sync_infer(compiled_model, model_meta, video_path, args.run_time, args.inference_only)
 
 
 def parse_args(args: List[str]):
@@ -42,6 +46,7 @@ def parse_args(args: List[str]):
     parser.add_argument("-m", "--model", type=str, default="resnet_50", choices=list(MODEL_MAP.keys()))
     parser.add_argument("-p", "--model_precision", type=str, default="int8", choices=["fp32", "fp16", "int8"])
     parser.add_argument("-t", "--run_time", type=int, default=60)
+    parser.add_argument("-io", "--inference_only", action="store_true", default=False)
     return parser.parse_args(args)
 
 

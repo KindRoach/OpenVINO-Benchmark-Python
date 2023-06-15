@@ -19,10 +19,15 @@ class TestingSyncInfer(unittest.TestCase):
         test_args = sync_infer.parse_args(cmd.split())
         sync_infer.main(test_args)
 
+    def test_main_inference_only(self):
+        cmd = "-t 5 -io"
+        test_args = sync_infer.parse_args(cmd.split())
+        sync_infer.main(test_args)
+
 
 class TestingAsyncInfer(unittest.TestCase):
     def test_main(self):
-        cmd = "-t 5 -n 2"
+        cmd = "-t 5"
         test_args = async_infer.parse_args(cmd.split())
         async_infer.main(test_args)
 
