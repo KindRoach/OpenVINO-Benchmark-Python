@@ -22,7 +22,8 @@ def multi_stream_infer(
             infer_req = model.create_infer_request()
             frames = read_preprocessed_frame_with_time(runtime, model_meta, inference_only)
             for frame_id, frame in enumerate(frames):
-                infer_req.infer(frame)
+                infer_req.start_async(frame)
+                infer_req.wait()
                 output = infer_req.get_output_tensor().data
                 outputs.append(output)
                 # pbar.write(f"thread {thread_id} frame {frame_id} done")
