@@ -16,8 +16,8 @@ ENV PY_ENV="ov-benchmark"
 RUN ${CONDA_DIR}/bin/conda create --name ${PY_ENV} python=3.9 -y
 ENV PATH=/opt/conda/envs/${PY_ENV}/bin:$PATH
 
-RUN git clone https://github.com/KindRoach/OpenVINO-Python-Benchmark.git
-WORKDIR /OpenVINO-Python-Benchmark
+RUN git clone https://github.com/KindRoach/OpenVINO-Benchmark-Python.git
+WORKDIR /OpenVINO-Benchmark-Python
 
 RUN pip install -r requirements.txt
 
