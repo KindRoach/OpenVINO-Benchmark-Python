@@ -1,6 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-    <configuration default="false" name="multi_stream_infer" type="PythonConfigurationType" factoryName="Python"
-                   nameIsGenerated="true">
+    <configuration default="false" name="multi_infer" type="PythonConfigurationType" factoryName="Python">
         <module name="OpenVINO-Benchmark-Python"/>
         <option name="INTERPRETER_OPTIONS" value=""/>
         <option name="PARENT_ENVS" value="true"/>
@@ -13,8 +12,8 @@
         <option name="ADD_CONTENT_ROOTS" value="true"/>
         <option name="ADD_SOURCE_ROOTS" value="true"/>
         <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py"/>
-        <option name="SCRIPT_NAME" value="$PROJECT_DIR$/openvino_benchmark/multi_stream_infer.py"/>
-        <option name="PARAMETERS" value=""/>
+        <option name="SCRIPT_NAME" value="$PROJECT_DIR$/run_infer.py"/>
+        <option name="PARAMETERS" value="-rm multi"/>
         <option name="SHOW_COMMAND_LINE" value="false"/>
         <option name="EMULATE_TERMINAL" value="false"/>
         <option name="MODULE_MODE" value="false"/>
