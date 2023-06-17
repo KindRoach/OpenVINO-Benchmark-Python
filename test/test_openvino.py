@@ -24,6 +24,11 @@ class TestingSyncInfer(unittest.TestCase):
         test_args = parse_args(cmd.split())
         main(test_args)
 
+    def test_main_ov_preprocess(self):
+        cmd = "-t 5 -io -op -rm sync"
+        test_args = parse_args(cmd.split())
+        main(test_args)
+
 
 class TestingAsyncInfer(unittest.TestCase):
     def test_main(self):

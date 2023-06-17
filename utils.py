@@ -4,6 +4,8 @@ from typing import Tuple, Callable, Dict
 
 import cv2
 import numpy
+from openvino.preprocess import ColorFormat, ResizeAlgorithm, PrePostProcessor
+from openvino.runtime import Core, Type, Layout
 from torchvision.models import resnet50, ResNet50_Weights, efficientnet_v2_l, EfficientNet_V2_L_Weights
 from torchvision.models._api import Weights
 
@@ -72,6 +74,7 @@ def preprocess(frame, model_meta: ModelMeta) -> numpy.ndarray:
     mean = 255 * numpy.array(model_meta.input_mean)
     std = 255 * numpy.array(model_meta.input_std)
     frame = cv2.resize(frame, model_meta.input_size[-2:])
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame = frame.transpose(2, 0, 1)  # HWC to CHW
     frame = (frame - mean[:, None, None]) / std[:, None, None]
     frame = numpy.expand_dims(frame, 0)
@@ -86,9 +89,15 @@ def read_frames_with_time(seconds: int):
         yield next(endless_frames)
 
 
-def read_preprocessed_frame_with_time(seconds: int, model_meta: ModelMeta, inference_only: bool):
+def read_input_with_time(seconds: int, model_meta: ModelMeta, inference_only: bool, preprocess_frame: bool):
+    if preprocess_frame:
+        shape = (1, *model_meta.input_size)
+        random_input = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
+    else:
+        shape = (1, 1080, 1920, 3)
+        random_input = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
+
     endless_frames = iter(read_endless_frames())
-    random_input = numpy.random.rand(1, *model_meta.input_size)
 
     start_time = time.time()
     while time.time() - start_time < seconds:
@@ -96,7 +105,40 @@ def read_preprocessed_frame_with_time(seconds: int, model_meta: ModelMeta, infer
             yield random_input
         else:
             frame = next(endless_frames)
-            yield preprocess(frame, model_meta)
+            if preprocess_frame:
+                frame = preprocess(frame, model_meta)
+            else:
+                frame = numpy.expand_dims(frame, 0)
+            yield frame
+
+
+def load_model(core: Core, model_meta: ModelMeta, model_type: str, ov_preprocess: bool):
+    model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, model_type)
+    model = core.read_model(model_xml)
+    if ov_preprocess:
+        ppp = PrePostProcessor(model)
+
+        ppp.input().tensor() \
+            .set_element_type(Type.u8) \
+            .set_spatial_dynamic_shape() \
+            .set_layout(Layout('NHWC')) \
+            .set_color_format(ColorFormat.BGR)
+
+        ppp.input().model().set_layout(Layout('NCHW'))
+
+        mean = 255 * numpy.array(model_meta.input_mean)
+        scale = 255 * numpy.array(model_meta.input_std)
+
+        ppp.input().preprocess() \
+            .convert_element_type(Type.f32) \
+            .convert_color(ColorFormat.RGB) \
+            .resize(ResizeAlgorithm.RESIZE_LINEAR) \
+            .mean(mean) \
+            .scale(scale)
+
+        model = ppp.build()
+
+    return core.compile_model(model)
 
 
 def cal_fps(pbar):
