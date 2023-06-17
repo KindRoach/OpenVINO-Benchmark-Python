@@ -1,17 +1,15 @@
 import unittest
 
-from opencv_benchmark import sync_decode, multi_stream_decode
+from run_decode import parse_args, main
 
 
 class TestingSyncDecode(unittest.TestCase):
     def test_sync_decode(self):
-        cmd = "-t 5"
-        test_args = sync_decode.parse_args(cmd.split())
-        sync_decode.main(test_args)
+        cmd = "-t 5 -rm sync"
+        test_args = parse_args(cmd.split())
+        main(test_args)
 
-
-class TestingMultiStreamDecode(unittest.TestCase):
-    def test_main(self):
-        cmd = "-t 5 -n 2"
-        test_args = multi_stream_decode.parse_args(cmd.split())
-        multi_stream_decode.main(test_args)
+    def test_multi_decode(self):
+        cmd = "-t 5 -rm multi -n 2"
+        test_args = parse_args(cmd.split())
+        main(test_args)

@@ -97,3 +97,9 @@ def read_preprocessed_frame_with_time(seconds: int, model_meta: ModelMeta, infer
         else:
             frame = next(endless_frames)
             yield preprocess(frame, model_meta)
+
+
+def cal_fps(pbar):
+    frames = pbar.format_dict["n"]
+    seconds = pbar.format_dict["elapsed"]
+    print(f"fps: {frames / seconds:.2f}")
