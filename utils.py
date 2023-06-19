@@ -4,6 +4,7 @@ from typing import Tuple, Callable, Dict
 
 import cv2
 import numpy
+from decord import VideoReader
 from openvino.preprocess import ColorFormat, ResizeAlgorithm, PrePostProcessor
 from openvino.runtime import Core, Type, Layout
 from torchvision.models import resnet50, ResNet50_Weights, efficientnet_v2_l, EfficientNet_V2_L_Weights
@@ -44,30 +45,15 @@ MODEL_MAP: Dict[str, ModelMeta] = {
 
 
 def read_endless_frames():
-    cap = cv2.VideoCapture(VIDEO_PATH)
-    assert cap.isOpened()
-
+    vr = VideoReader(VIDEO_PATH, num_threads=1)
     while True:
-        success, frame = cap.read()
-        if success:
-            yield frame
-        else:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
-    cap.release()
-
+        for _ in range(len(vr)):
+            yield vr.next().asnumpy()
+        vr.seek_accurate(0)
 
 def read_all_frames():
-    cap = cv2.VideoCapture(VIDEO_PATH)
-    assert cap.isOpened()
-    while True:
-        success, frame = cap.read()
-        if success:
-            yield frame
-        else:
-            break
-
-    cap.release()
+    vr = VideoReader(VIDEO_PATH)
+    return [frame.asnumpy() for frame in vr]
 
 
 def preprocess(frame, model_meta: ModelMeta) -> numpy.ndarray:
