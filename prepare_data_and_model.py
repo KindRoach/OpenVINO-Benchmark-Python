@@ -10,17 +10,29 @@ from openvino.tools import mo
 from torch.nn import Module
 from torch.utils.data import DataLoader, TensorDataset
 
-from utils import MODEL_MAP, ModelMeta, read_all_frames, preprocess, OV_MODEL_PATH_PATTERN, VIDEO_PATH
+from utils import MODEL_MAP, ModelMeta, read_all_frames, preprocess, OV_MODEL_PATH_PATTERN, TEST_VIDEO_PATH, \
+    TEST_IMAGE_PATH
 
 
-def download_video() -> None:
-    if not Path(VIDEO_PATH).exists():
-        logging.info("Downloading Video...")
+def download_file(url: str, target_path: str) -> None:
+    if not Path(target_path).exists():
+        logging.info(f"Downloading to {target_path} ...")
         opener = urllib.request.build_opener()
         opener.addheaders = [('User-agent', 'Mozilla/5.0')]
         urllib.request.install_opener(opener)
-        video_url = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_30MB.mp4"
-        urllib.request.urlretrieve(video_url, VIDEO_PATH)
+        urllib.request.urlretrieve(url, target_path)
+
+
+def download_video_and_image() -> None:
+    download_file(
+        "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_30MB.mp4",
+        TEST_VIDEO_PATH
+    )
+
+    download_file(
+        "https://storage.openvinotoolkit.org/data/test_data/images/dog.jpg",
+        TEST_IMAGE_PATH
+    )
 
 
 def download_model(model: ModelMeta) -> Module:
@@ -68,7 +80,7 @@ def quantization(model_meta: ModelMeta) -> None:
 
 
 def main():
-    download_video()
+    download_video_and_image()
     for model_meta in MODEL_MAP.values():
         model = download_model(model_meta)
         convert_torch_to_openvino(model_meta, model)

@@ -9,8 +9,9 @@ from openvino.runtime import Core, Type, Layout
 from torchvision.models import resnet50, ResNet50_Weights, efficientnet_v2_l, EfficientNet_V2_L_Weights
 from torchvision.models._api import Weights
 
-OV_MODEL_PATH_PATTERN = "outputs/model/%s/%s/model.xml"
-VIDEO_PATH = "outputs/video.mp4"
+OV_MODEL_PATH_PATTERN = "output/model/%s/%s/model.xml"
+TEST_VIDEO_PATH = "output/video.mp4"
+TEST_IMAGE_PATH = "output/image.jpg"
 
 
 @dataclass
@@ -44,7 +45,7 @@ MODEL_MAP: Dict[str, ModelMeta] = {
 
 
 def read_endless_frames():
-    cap = cv2.VideoCapture(VIDEO_PATH)
+    cap = cv2.VideoCapture(TEST_VIDEO_PATH)
     assert cap.isOpened()
 
     while True:
@@ -58,7 +59,7 @@ def read_endless_frames():
 
 
 def read_all_frames():
-    cap = cv2.VideoCapture(VIDEO_PATH)
+    cap = cv2.VideoCapture(TEST_VIDEO_PATH)
     assert cap.isOpened()
     while True:
         success, frame = cap.read()

@@ -9,7 +9,7 @@ from openvino.runtime import Core, CompiledModel, AsyncInferQueue
 from simple_parsing import choice, flag, field, ArgumentParser
 from tqdm import tqdm
 
-from utils import MODEL_MAP, ModelMeta, OV_MODEL_PATH_PATTERN, read_input_with_time, cal_fps, load_model
+from utils import MODEL_MAP, ModelMeta, read_input_with_time, cal_fps, load_model
 
 
 @dataclass

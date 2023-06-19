@@ -1,6 +1,6 @@
 /.idea/
 /.vscode/
 
-/outputs/
+/output/
 
 __pycache__
