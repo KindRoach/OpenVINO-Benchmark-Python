@@ -1,4 +1,3 @@
-import unittest
 from typing import Tuple
 
 import cv2
@@ -53,25 +52,22 @@ def ov_predict(model: ModelMeta, model_type: str, ov_preprocess: bool) -> Tuple[
     return ov_output.max(axis=1), ov_output.argmax(axis=1)
 
 
-class TestingUtils(unittest.TestCase):
-    """
-    By inference on a test image, we compare the output of torch model and OpenVINO fp32/int8 model.
-    """
+def test_numpy_preprocess():
+    for model in MODEL_MAP.values():
+        torch_confidence, torch_label = torch_predict(model)
+        ov_confidence, ov_label = ov_predict(model, "fp32", False)
+        assert_array_equal(torch_label, ov_label)
 
-    def test_numpy_preprocess(self):
-        for model in MODEL_MAP.values():
-            torch_confidence, torch_label = torch_predict(model)
-            ov_confidence, ov_label = ov_predict(model, "fp32", False)
-            assert_array_equal(torch_label, ov_label)
 
-    def test_ov_preprocess(self):
-        for model in MODEL_MAP.values():
-            torch_confidence, torch_label = torch_predict(model)
-            ov_confidence, ov_label = ov_predict(model, "fp32", True)
-            assert_array_equal(torch_label, ov_label)
+def test_ov_preprocess():
+    for model in MODEL_MAP.values():
+        torch_confidence, torch_label = torch_predict(model)
+        ov_confidence, ov_label = ov_predict(model, "fp32", True)
+        assert_array_equal(torch_label, ov_label)
 
-    def test_ov_quantization(self):
-        for model in MODEL_MAP.values():
-            torch_confidence, torch_label = torch_predict(model)
-            ov_confidence, ov_label = ov_predict(model, "int8", False)
-            assert_array_equal(torch_label, ov_label)
+
+def test_ov_quantization():
+    for model in MODEL_MAP.values():
+        torch_confidence, torch_label = torch_predict(model)
+        ov_confidence, ov_label = ov_predict(model, "int8", False)
+        assert_array_equal(torch_label, ov_label)
