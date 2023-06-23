@@ -91,12 +91,12 @@ def read_frames_with_time(seconds: int):
 
 
 def read_input_with_time(seconds: int, model_meta: ModelMeta, inference_only: bool, preprocess_frame: bool):
+    shape = (1080, 1920, 3)
+    random_input = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
     if preprocess_frame:
-        shape = (1, *model_meta.input_size)
-        random_input = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
+        random_input = preprocess(random_input, model_meta)
     else:
-        shape = (1, 1080, 1920, 3)
-        random_input = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
+        random_input = numpy.expand_dims(random_input, 0)
 
     endless_frames = iter(read_endless_frames())
 
