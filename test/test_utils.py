@@ -39,35 +39,18 @@ def torch_predict(model: ModelMeta) -> Tuple[numpy.ndarray, numpy.ndarray]:
     return torch_output.max(axis=1), torch_output.argmax(axis=1)
 
 
-def ov_predict(model: ModelMeta, model_type: str, ov_preprocess: bool) -> Tuple[numpy.ndarray, numpy.ndarray]:
+def ov_predict(model: ModelMeta, model_type: str) -> Tuple[numpy.ndarray, numpy.ndarray]:
     frame = cv2.imread(TEST_IMAGE_PATH)
-    if ov_preprocess:
-        frame = numpy.expand_dims(frame, 0)
-    else:
-        frame = preprocess(frame, model)
-    model = load_model(Core(), model, model_type, ov_preprocess)
+    frame = preprocess(frame, model)
+    model = load_model(Core(), model, model_type)
     infer_req = model.create_infer_request()
     infer_req.infer(frame)
     ov_output = infer_req.get_output_tensor().data
     return ov_output.max(axis=1), ov_output.argmax(axis=1)
 
 
-def test_numpy_preprocess():
-    for model in MODEL_MAP.values():
-        torch_confidence, torch_label = torch_predict(model)
-        ov_confidence, ov_label = ov_predict(model, "fp32", False)
-        assert_array_equal(torch_label, ov_label)
-
-
-def test_ov_preprocess():
-    for model in MODEL_MAP.values():
-        torch_confidence, torch_label = torch_predict(model)
-        ov_confidence, ov_label = ov_predict(model, "fp32", True)
-        assert_array_equal(torch_label, ov_label)
-
-
 def test_ov_quantization():
     for model in MODEL_MAP.values():
         torch_confidence, torch_label = torch_predict(model)
-        ov_confidence, ov_label = ov_predict(model, "int8", False)
+        ov_confidence, ov_label = ov_predict(model, "int8")
         assert_array_equal(torch_label, ov_label)

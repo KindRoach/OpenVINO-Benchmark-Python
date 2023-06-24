@@ -25,12 +25,6 @@ def test_sync_infer_inference_only():
     main(test_args)
 
 
-def test_sync_infer_ov_preprocess():
-    cmd = "-t 5 -io -op -rm sync"
-    test_args = parse_args(cmd.split())
-    main(test_args)
-
-
 def test_async_infer():
     cmd = "-t 5 -rm async"
     test_args = parse_args(cmd.split())

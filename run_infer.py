@@ -18,7 +18,6 @@ class Args:
     model_type: str = choice("fp32", "fp16", "int8", alias=["-mt"], default="int8")
     device: str = choice(*(["CPU", "GPU"] + [f"GPU.{i}" for i in range(8)]), alias=["-d"], default="CPU")
     inference_only: bool = flag(alias=["-io"], default=False)
-    ov_preprocess: bool = flag(alias=["-op"], default=False)
     run_mode: str = choice("sync", "async", "multi", alias=["-rm"], default="sync")
     n_stream: int = field(alias=["-n"], default=os.cpu_count())
     duration: int = field(alias=["-t"], default=60)
@@ -28,7 +27,7 @@ def sync_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list:
     outputs = []
     with tqdm(unit="frame") as pbar:
         infer_req = model.create_infer_request()
-        for frame in read_input_with_time(args.duration, model_meta, args.inference_only, not args.ov_preprocess):
+        for frame in read_input_with_time(args.duration, model_meta, args.inference_only):
             infer_req.infer(frame)
             output = infer_req.get_output_tensor().data
             outputs.append(output)
@@ -51,7 +50,7 @@ def async_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list
         infer_queue = AsyncInferQueue(model)
         infer_queue.set_callback(call_back)
 
-        frames = read_input_with_time(args.duration, model_meta, args.inference_only, not args.ov_preprocess)
+        frames = read_input_with_time(args.duration, model_meta, args.inference_only)
         for i, frame in enumerate(frames):
             infer_queue.start_async(frame, i)
 
@@ -65,7 +64,7 @@ def multi_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list
         def infer_stream(thread_id: int):
             outputs = []
             infer_req = model.create_infer_request()
-            frames = read_input_with_time(args.duration, model_meta, args.inference_only, not args.ov_preprocess)
+            frames = read_input_with_time(args.duration, model_meta, args.inference_only)
             for frame_id, frame in enumerate(frames):
                 infer_req.start_async(frame)
                 infer_req.wait()
@@ -89,7 +88,7 @@ def main(args: Args) -> None:
     throughput_mode = "THROUGHPUT" if args.run_mode in ["async", "multi"] else "LATENCY"
     ie.set_property("CPU", {"PERFORMANCE_HINT": throughput_mode})
     model_meta = MODEL_MAP[args.model]
-    compiled_model = load_model(ie, model_meta, args.model_type, args.ov_preprocess)
+    compiled_model = load_model(ie, model_meta, args.model_type)
     globals()[f"{args.run_mode}_infer"](args, compiled_model, model_meta)
 
 

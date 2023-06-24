@@ -90,13 +90,10 @@ def read_frames_with_time(seconds: int):
         yield next(endless_frames)
 
 
-def read_input_with_time(seconds: int, model_meta: ModelMeta, inference_only: bool, preprocess_frame: bool):
+def read_input_with_time(seconds: int, model_meta: ModelMeta, inference_only: bool):
     shape = (1080, 1920, 3)
     random_input = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
-    if preprocess_frame:
-        random_input = preprocess(random_input, model_meta)
-    else:
-        random_input = numpy.expand_dims(random_input, 0)
+    random_input = preprocess(random_input, model_meta)
 
     endless_frames = iter(read_endless_frames())
 
@@ -106,39 +103,13 @@ def read_input_with_time(seconds: int, model_meta: ModelMeta, inference_only: bo
             yield random_input
         else:
             frame = next(endless_frames)
-            if preprocess_frame:
-                frame = preprocess(frame, model_meta)
-            else:
-                frame = numpy.expand_dims(frame, 0)
+            frame = preprocess(frame, model_meta)
             yield frame
 
 
-def load_model(core: Core, model_meta: ModelMeta, model_type: str, ov_preprocess: bool):
+def load_model(core: Core, model_meta: ModelMeta, model_type: str):
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, model_type)
     model = core.read_model(model_xml)
-    if ov_preprocess:
-        ppp = PrePostProcessor(model)
-
-        ppp.input().tensor() \
-            .set_element_type(Type.u8) \
-            .set_spatial_dynamic_shape() \
-            .set_layout(Layout('NHWC')) \
-            .set_color_format(ColorFormat.BGR)
-
-        ppp.input().model().set_layout(Layout('NCHW'))
-
-        mean = 255 * numpy.array(model_meta.input_mean)
-        scale = 255 * numpy.array(model_meta.input_std)
-
-        ppp.input().preprocess() \
-            .convert_element_type(Type.f32) \
-            .convert_color(ColorFormat.RGB) \
-            .resize(ResizeAlgorithm.RESIZE_LINEAR) \
-            .mean(mean) \
-            .scale(scale)
-
-        model = ppp.build()
-
     return core.compile_model(model)
 
 
