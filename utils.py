@@ -4,8 +4,7 @@ from typing import Tuple, Callable, Dict
 
 import cv2
 import numpy
-from openvino.preprocess import ColorFormat, ResizeAlgorithm, PrePostProcessor
-from openvino.runtime import Core, Type, Layout
+from openvino.runtime import Core
 from torchvision.models import resnet50, ResNet50_Weights, efficientnet_v2_l, EfficientNet_V2_L_Weights
 from torchvision.models._api import Weights
 
@@ -71,15 +70,23 @@ def read_all_frames():
     cap.release()
 
 
-def preprocess(frame, model_meta: ModelMeta) -> numpy.ndarray:
+def preprocess(frames, model_meta: ModelMeta) -> numpy.ndarray:
     mean = 255 * numpy.array(model_meta.input_mean)
     std = 255 * numpy.array(model_meta.input_std)
-    frame = cv2.resize(frame, model_meta.input_size[-2:])
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame = frame.transpose(2, 0, 1)  # HWC to CHW
-    frame = (frame - mean[:, None, None]) / std[:, None, None]
-    frame = numpy.expand_dims(frame, 0)
-    return frame
+
+    use_batch = len(frames.shape) == 4
+    if not use_batch:
+        frames = numpy.expand_dims(frames, 0)
+
+    processed_frames = numpy.zeros((frames.shape[0], *model_meta.input_size[-3:]), dtype=numpy.float32)
+    for i in range(frames.shape[0]):
+        frame = cv2.resize(frames[i], model_meta.input_size[-2:])
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = frame.transpose(2, 0, 1)  # HWC to CHW
+        frame = (frame - mean[:, None, None]) / std[:, None, None]
+        processed_frames[i] = frame
+
+    return processed_frames
 
 
 def read_frames_with_time(seconds: int):
