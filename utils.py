@@ -114,10 +114,10 @@ def read_input_with_time(seconds: int, model_meta: ModelMeta, inference_only: bo
             yield frame
 
 
-def load_model(core: Core, model_meta: ModelMeta, model_type: str):
+def load_model(core: Core, model_meta: ModelMeta, model_type: str, device: str):
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, model_type)
     model = core.read_model(model_xml)
-    return core.compile_model(model)
+    return core.compile_model(model, device)
 
 
 def cal_fps(pbar):

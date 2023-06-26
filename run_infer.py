@@ -16,7 +16,7 @@ from utils import MODEL_MAP, ModelMeta, read_input_with_time, cal_fps, load_mode
 class Args:
     model: str = choice(*MODEL_MAP.keys(), alias=["-m"], default="resnet_50")
     model_type: str = choice("fp32", "fp16", "int8", alias=["-mt"], default="int8")
-    device: str = choice(*(["CPU", "GPU"] + [f"GPU.{i}" for i in range(8)]), alias=["-d"], default="CPU")
+    device: str = field(alias=["-d"], default="CPU")  # The device used for OpenVINO: CPU, GPU, MULTI:CPU,GPU ...
     inference_only: bool = flag(alias=["-io"], default=False)
     run_mode: str = choice("sync", "async", "multi", alias=["-rm"], default="sync")
     n_stream: int = field(alias=["-n"], default=os.cpu_count())
@@ -88,7 +88,7 @@ def main(args: Args) -> None:
     throughput_mode = "THROUGHPUT" if args.run_mode in ["async", "multi"] else "LATENCY"
     ie.set_property("CPU", {"PERFORMANCE_HINT": throughput_mode})
     model_meta = MODEL_MAP[args.model]
-    compiled_model = load_model(ie, model_meta, args.model_type)
+    compiled_model = load_model(ie, model_meta, args.model_type, args.device)
     globals()[f"{args.run_mode}_infer"](args, compiled_model, model_meta)
 
 

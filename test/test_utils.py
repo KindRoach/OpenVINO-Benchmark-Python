@@ -42,7 +42,7 @@ def torch_predict(model: ModelMeta) -> Tuple[numpy.ndarray, numpy.ndarray]:
 def ov_predict(model: ModelMeta, model_type: str) -> Tuple[numpy.ndarray, numpy.ndarray]:
     frame = cv2.imread(TEST_IMAGE_PATH)
     frame = preprocess(frame, model)
-    model = load_model(Core(), model, model_type)
+    model = load_model(Core(), model, model_type, "CPU")
     infer_req = model.create_infer_request()
     infer_req.infer(frame)
     ov_output = infer_req.get_output_tensor().data

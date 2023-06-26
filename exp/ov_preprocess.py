@@ -31,7 +31,7 @@ def load_model(model_meta: ModelMeta, model_type: str, batch_size: int):
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, model_type)
     model = core.read_model(model_xml)
 
-    # change to dynamic shape
+    # change to batch size
     shapes = {}
     for input_layer in model.inputs:
         shapes[input_layer] = input_layer.partial_shape
