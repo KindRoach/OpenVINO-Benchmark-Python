@@ -1,5 +1,4 @@
 import itertools
-from threading import Lock
 
 import numpy
 from openvino.runtime import Core, CompiledModel, AsyncInferQueue
@@ -13,14 +12,8 @@ def benchmark_model(tittle: str, model_meta: ModelMeta, model: CompiledModel, ba
     random_input = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
     frame = preprocess(random_input, model_meta)
 
-    outputs = dict()
-    lock = Lock()
-
     with tqdm(desc=tittle, unit="frame", unit_scale=batch_size) as pbar:
         def call_back(request, userdata):
-            with lock:
-                frame_id = userdata
-                outputs[frame_id] = request.get_output_tensor().data
             pbar.update(1)
 
         infer_queue = AsyncInferQueue(model)
@@ -43,8 +36,8 @@ def exp(model_meta: ModelMeta, model_type: str):
 
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, model_type)
     model = core.read_model(model_xml)
+    model_single_input = core.compile_model(model, "CPU")
 
-    model_single_input = core.compile_model(model)
     model_auto_batch = core.compile_model(model, f"BATCH:CPU({batch_size})")
 
     # change to batch size
@@ -54,7 +47,7 @@ def exp(model_meta: ModelMeta, model_type: str):
         shapes[input_layer][0] = batch_size
     model.reshape(shapes)
 
-    model_manual_batch = core.compile_model(model)
+    model_manual_batch = core.compile_model(model, "CPU")
 
     benchmark_model("single input", model_meta, model_single_input)
     benchmark_model("auto batch", model_meta, model_auto_batch)

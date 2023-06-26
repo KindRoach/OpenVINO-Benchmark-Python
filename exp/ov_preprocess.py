@@ -38,7 +38,7 @@ def load_model(model_meta: ModelMeta, model_type: str, batch_size: int):
         shapes[input_layer][0] = batch_size
     model.reshape(shapes)
 
-    model_no_preprocess = core.compile_model(model)
+    model_no_preprocess = core.compile_model(model, "CPU")
 
     # build model with preprocess
     ppp = PrePostProcessor(model)
@@ -57,7 +57,7 @@ def load_model(model_meta: ModelMeta, model_type: str, batch_size: int):
         .mean(mean) \
         .scale(scale)
     model = ppp.build()
-    model_ov_preprocess = core.compile_model(model)
+    model_ov_preprocess = core.compile_model(model, "CPU")
 
     return model_no_preprocess, model_ov_preprocess
 

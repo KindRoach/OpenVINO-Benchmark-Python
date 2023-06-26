@@ -24,21 +24,21 @@ def exp(model_meta: ModelMeta, model_type: str):
     print(f"------------------{model_meta.name}:{model_type}------------------")
     model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, model_type)
     model = core.read_model(model_xml)
-    model_static_shape = core.compile_model(model)
+    model_static_shape = core.compile_model(model, "CPU")
 
     shapes = {}
     for input_layer in model.inputs:
         shapes[input_layer] = input_layer.partial_shape
         shapes[input_layer][0] = -1
     model.reshape(shapes)
-    model_dynamic_shape = core.compile_model(model)
+    model_dynamic_shape = core.compile_model(model, "CPU")
 
     shapes = {}
     for input_layer in model.inputs:
         shapes[input_layer] = input_layer.partial_shape
         shapes[input_layer][0] = 8
     model.reshape(shapes)
-    model_static_shape_b8 = core.compile_model(model)
+    model_static_shape_b8 = core.compile_model(model, "CPU")
 
     benchmark_model("static shape", model_meta, model_static_shape)
     benchmark_model("dynamic shape b1", model_meta, model_dynamic_shape)
