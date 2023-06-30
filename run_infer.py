@@ -87,6 +87,8 @@ def main(args: Args) -> None:
     ie = Core()
     throughput_mode = "THROUGHPUT" if args.run_mode in ["async", "multi"] else "LATENCY"
     ie.set_property("CPU", {"PERFORMANCE_HINT": throughput_mode})
+    ie.set_property("GPU", {"PERFORMANCE_HINT": throughput_mode})
+
     model_meta = MODEL_MAP[args.model]
     compiled_model = load_model(ie, model_meta, args.model_type, args.device)
     globals()[f"{args.run_mode}_infer"](args, compiled_model, model_meta)
