@@ -12,7 +12,7 @@ from utils import read_frames_with_time, cal_fps
 
 @dataclass
 class Args:
-    run_mode: str = choice("sync", "async", "multi", alias=["-rm"], default="sync")
+    run_mode: str = choice("sync", "multi", alias=["-rm"], default="sync")
     n_stream: int = field(alias=["-n"], default=os.cpu_count())
     duration: int = field(alias=["-t"], default=60)
 
