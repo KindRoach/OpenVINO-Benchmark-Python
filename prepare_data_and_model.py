@@ -1,12 +1,16 @@
 import logging
+import sys
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
+from typing import List
 
 import nncf
 import numpy
 import openvino.runtime as ov
 import torch
 from openvino.tools import mo
+from simple_parsing import choice, ArgumentParser
 from torch.nn import Module
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -79,13 +83,27 @@ def quantization(model_meta: ModelMeta) -> None:
     ov.serialize(model_int8, model_int8_xml)
 
 
-def main():
+@dataclass
+class Args:
+    model: str = choice(*[MODEL_MAP.keys(), "all"], alias=["-m"], default="resnet_50")
+
+
+def main(args: Args) -> None:
     download_video_and_image()
-    for model_meta in MODEL_MAP.values():
+    models = MODEL_MAP.keys() if args.model == "all" else [args.model]
+
+    for model_name in models:
+        model_meta = MODEL_MAP[model_name]
         model = download_model(model_meta)
         convert_torch_to_openvino(model_meta, model)
         quantization(model_meta)
 
 
+def parse_args(args: List[str]):
+    parser = ArgumentParser()
+    parser.add_arguments(Args, dest="arguments")
+    return parser.parse_args(args).arguments
+
 if __name__ == '__main__':
-    main()
+    args = parse_args(sys.argv[1:])
+    main(args)
