@@ -1,10 +1,12 @@
 import itertools
+import sys
 
 import numpy
 from openvino.preprocess import ColorFormat, ResizeAlgorithm, PrePostProcessor
 from openvino.runtime import Core, Type, Layout, CompiledModel
 from tqdm import tqdm
 
+from exp.exp_args import ExpArgs, parse_exp_args
 from utils import ModelMeta, read_input_with_time, MODEL_MAP, OV_MODEL_PATH_PATTERN, preprocess
 
 
@@ -74,10 +76,13 @@ def exp(model_meta: ModelMeta, model_type: str):
     benchmark_model("openvino preprocess b8", model_meta, model_ov_preprocess, True, 8)
 
 
-def main():
-    for model, type in itertools.product(MODEL_MAP.values(), ["fp32", "fp16", "int8"]):
+def main(args: ExpArgs):
+    models = MODEL_MAP.keys() if args.model == "all" else [args.model]
+    model_types = ["fp32", "fp16", "int8"] if args.model_type == "all" else [args.model_type]
+    for model, type in itertools.product(models, model_types):
         exp(model, type)
 
 
 if __name__ == '__main__':
-    main()
+    args = parse_exp_args(sys.argv[1:])
+    main(args)

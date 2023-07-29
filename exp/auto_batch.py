@@ -1,9 +1,11 @@
 import itertools
+import sys
 
 import numpy
 from openvino.runtime import Core, CompiledModel, AsyncInferQueue
 from tqdm import tqdm
 
+from exp.exp_args import ExpArgs, parse_exp_args
 from utils import MODEL_MAP, ModelMeta, OV_MODEL_PATH_PATTERN, read_input_with_time, preprocess
 
 
@@ -54,10 +56,13 @@ def exp(model_meta: ModelMeta, model_type: str):
     benchmark_model("manual batch", model_meta, model_manual_batch, batch_size)
 
 
-def main():
-    for model, type in itertools.product(MODEL_MAP.values(), ["fp32", "fp16", "int8"]):
+def main(args: ExpArgs):
+    models = MODEL_MAP.keys() if args.model == "all" else [args.model]
+    model_types = ["fp32", "fp16", "int8"] if args.model_type == "all" else [args.model_type]
+    for model, type in itertools.product(models, model_types):
         exp(model, type)
 
 
 if __name__ == '__main__':
-    main()
+    args = parse_exp_args(sys.argv[1:])
+    main(args)
