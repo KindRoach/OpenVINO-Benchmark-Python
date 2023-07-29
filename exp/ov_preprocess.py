@@ -80,7 +80,7 @@ def main(args: ExpArgs):
     models = MODEL_MAP.keys() if args.model == "all" else [args.model]
     model_types = ["fp32", "fp16", "int8"] if args.model_type == "all" else [args.model_type]
     for model, type in itertools.product(models, model_types):
-        exp(model, type)
+        exp(MODEL_MAP[model], type)
 
 
 if __name__ == '__main__':

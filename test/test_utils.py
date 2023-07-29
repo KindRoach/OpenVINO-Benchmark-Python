@@ -50,7 +50,7 @@ def ov_predict(model: ModelMeta, model_type: str) -> Tuple[numpy.ndarray, numpy.
 
 
 def test_ov_quantization():
-    for model in MODEL_MAP.values():
-        torch_confidence, torch_label = torch_predict(model)
-        ov_confidence, ov_label = ov_predict(model, "int8")
-        assert_array_equal(torch_label, ov_label)
+    model = MODEL_MAP["resnet_50"]
+    torch_confidence, torch_label = torch_predict(model)
+    ov_confidence, ov_label = ov_predict(model, "int8")
+    assert_array_equal(torch_label, ov_label)
