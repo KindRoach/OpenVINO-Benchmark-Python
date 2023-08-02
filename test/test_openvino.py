@@ -35,3 +35,9 @@ def test_multi_infer():
     cmd = "-t 5 -rm multi -n 2"
     test_args = parse_args(cmd.split())
     main(test_args)
+
+
+def test_one_decode_multi_infer():
+    cmd = "-t 5 -rm one_decode_multi -n 2"
+    test_args = parse_args(cmd.split())
+    main(test_args)

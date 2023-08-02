@@ -1,3 +1,9 @@
+import queue
+import threading
+import time
+from statistics import mean
+
+import tqdm
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -18,7 +24,7 @@ class Args:
     model_type: str = choice("fp32", "fp16", "int8", alias=["-mt"], default="int8")
     device: str = field(alias=["-d"], default="CPU")  # The device used for OpenVINO: CPU, GPU, MULTI:CPU,GPU ...
     inference_only: bool = flag(alias=["-io"], default=False)
-    run_mode: str = choice("sync", "async", "multi", alias=["-rm"], default="sync")
+    run_mode: str = choice("sync", "async", "multi", "one_decode_multi", alias=["-rm"], default="sync")
     n_stream: int = field(alias=["-n"], default=os.cpu_count())
     duration: int = field(alias=["-t"], default=60)
 
@@ -59,6 +65,56 @@ def async_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list
     return [item for key, item in sorted(outputs.items())]
 
 
+def one_decode_multi_infer(args: Args, model: CompiledModel, model_meta: ModelMeta):
+    """
+    Decode video by one thread as producer and infer frame by a pool of threads as consumers.
+    The main difference between this function with "async_infer" is that
+    inference results could be retrieved in the order of submission as soon as possible.
+    """
+    thread_local = threading.local()
+
+    def infer_one_frame(frame):
+        if not hasattr(thread_local, 'infer_req'):
+            thread_local.infer_req = model.create_infer_request()
+
+        infer_req = thread_local.infer_req
+        infer_req.start_async(frame)
+        infer_req.wait()
+        output = infer_req.get_output_tensor().data
+        return output
+
+    with ThreadPoolExecutor(args.n_stream) as pool:
+        all_start_time = []
+        task_queue = queue.Queue(args.n_stream)
+
+        def decode_and_submit():
+            frames = read_input_with_time(args.duration, model_meta, args.inference_only)
+            all_start_time.append(time.perf_counter())
+            for frame in frames:
+                task = pool.submit(infer_one_frame, frame)
+                task_queue.put(task)
+                all_start_time.append(time.perf_counter())
+            task_queue.put(None)
+
+        t = threading.Thread(target=decode_and_submit)
+        t.start()
+
+        outputs = []
+        all_end_time = []
+        with tqdm(unit="frame") as pbar:
+            while (task := task_queue.get()) is not None:
+                outputs.append(task.result())
+                all_end_time.append(time.perf_counter())
+                pbar.update(1)
+
+        all_latency = [1000 * (e - s) for e, s in zip(all_end_time, all_start_time)]
+        print(f"latency: avg={mean(all_latency):.2f}ms, min={min(all_latency):.2f}ms, max={max(all_latency):.2f}ms")
+        cal_fps(pbar)
+        t.join()
+
+        return outputs
+
+
 def multi_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list:
     with tqdm(unit="frame") as pbar:
         def infer_stream(thread_id: int):
@@ -74,10 +130,8 @@ def multi_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list
             return outputs
 
         with ThreadPoolExecutor(args.n_stream) as pool:
-            tasks = []
-            for tid in range(args.n_stream):
-                tasks.append(pool.submit(infer_stream, tid))
-            outputs = [task.result() for task in tasks]
+            ids = range(args.n_stream)
+            outputs = list(pool.map(infer_stream, ids))
 
     cal_fps(pbar)
     return outputs
