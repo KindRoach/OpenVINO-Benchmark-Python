@@ -1,3 +1,4 @@
+import itertools
 import time
 from dataclasses import dataclass
 from typing import Tuple, Callable, Dict
@@ -89,8 +90,11 @@ def preprocess(frames, model_meta: ModelMeta) -> numpy.ndarray:
     return processed_frames
 
 
-def read_frames_with_time(seconds: int):
-    endless_frames = iter(read_endless_frames())
+def read_frames_with_time(seconds: int, fake_decode: bool):
+    shape = (1080, 1920, 3)
+    random_frame = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
+    endless_frames = itertools.cycle([random_frame]) if fake_decode else read_endless_frames()
+    endless_frames = iter(endless_frames)
 
     start_time = time.time()
     while time.time() - start_time < seconds:
@@ -99,19 +103,16 @@ def read_frames_with_time(seconds: int):
 
 def read_input_with_time(seconds: int, model_meta: ModelMeta, inference_only: bool):
     shape = (1080, 1920, 3)
-    random_input = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
-    random_input = preprocess(random_input, model_meta)
+    random_frame = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
+    random_input = preprocess(random_frame, model_meta)
 
-    endless_frames = iter(read_endless_frames())
+    endless_input = (preprocess(frame, model_meta) for frame in read_endless_frames())
+    endless_inputs = itertools.cycle([random_input]) if inference_only else endless_input
+    endless_inputs = iter(endless_inputs)
 
     start_time = time.time()
     while time.time() - start_time < seconds:
-        if inference_only:
-            yield random_input
-        else:
-            frame = next(endless_frames)
-            frame = preprocess(frame, model_meta)
-            yield frame
+        yield next(endless_inputs)
 
 
 def load_model(core: Core, model_meta: ModelMeta, model_type: str, device: str):

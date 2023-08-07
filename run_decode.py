@@ -19,7 +19,7 @@ class Args:
 
 def sync_decode(args: Args) -> None:
     with tqdm(unit="frame") as pbar:
-        for frame in read_frames_with_time(args.duration):
+        for frame in read_frames_with_time(args.duration, False):
             pbar.update(1)
 
     cal_fps(pbar)
@@ -28,7 +28,7 @@ def sync_decode(args: Args) -> None:
 def multi_decode(args: Args) -> None:
     with tqdm(unit="frame") as pbar:
         def decode_stream(thread_id: int):
-            for frame in read_frames_with_time(args.duration):
+            for frame in read_frames_with_time(args.duration, False):
                 pbar.update(1)
 
         with ThreadPoolExecutor(args.n_stream) as pool:

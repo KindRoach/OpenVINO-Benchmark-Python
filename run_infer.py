@@ -15,7 +15,7 @@ from openvino.runtime import Core, CompiledModel, AsyncInferQueue
 from simple_parsing import choice, flag, field, ArgumentParser
 from tqdm import tqdm
 
-from utils import MODEL_MAP, ModelMeta, read_input_with_time, cal_fps, load_model
+from utils import MODEL_MAP, ModelMeta, read_input_with_time, cal_fps, load_model, read_frames_with_time, preprocess
 
 
 @dataclass
@@ -77,6 +77,7 @@ def one_decode_multi_infer(args: Args, model: CompiledModel, model_meta: ModelMe
         if not hasattr(thread_local, 'infer_req'):
             thread_local.infer_req = model.create_infer_request()
 
+        frame = preprocess(frame, model_meta)
         infer_req = thread_local.infer_req
         infer_req.start_async(frame)
         infer_req.wait()
@@ -88,7 +89,7 @@ def one_decode_multi_infer(args: Args, model: CompiledModel, model_meta: ModelMe
         task_queue = queue.Queue(args.n_stream)
 
         def decode_and_submit():
-            frames = read_input_with_time(args.duration, model_meta, args.inference_only)
+            frames = read_frames_with_time(args.duration, args.inference_only)
             all_start_time.append(time.perf_counter())
             for frame in frames:
                 task = pool.submit(infer_one_frame, frame)
@@ -139,7 +140,7 @@ def multi_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list
 
 def main(args: Args) -> None:
     ie = Core()
-    throughput_mode = "THROUGHPUT" if args.run_mode in ["async", "multi"] else "LATENCY"
+    throughput_mode = "THROUGHPUT" if args.run_mode in ["async", "multi", "one_decode_multi"] else "LATENCY"
     ie.set_property("CPU", {"PERFORMANCE_HINT": throughput_mode})
     ie.set_property("GPU", {"PERFORMANCE_HINT": throughput_mode})
 

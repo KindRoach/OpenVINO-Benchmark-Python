@@ -104,6 +104,7 @@ def parse_args(args: List[str]):
     parser.add_arguments(Args, dest="arguments")
     return parser.parse_args(args).arguments
 
+
 if __name__ == '__main__':
     args = parse_args(sys.argv[1:])
     main(args)
