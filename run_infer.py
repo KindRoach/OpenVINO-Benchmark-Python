@@ -15,7 +15,8 @@ from openvino.runtime import Core, CompiledModel, AsyncInferQueue
 from simple_parsing import choice, flag, field, ArgumentParser
 from tqdm import tqdm
 
-from utils import MODEL_MAP, ModelMeta, read_input_with_time, cal_fps, load_model, read_frames_with_time, preprocess
+from utils import MODEL_MAP, ModelMeta, read_input_with_time, cal_fps, read_frames_with_time, preprocess, \
+    OV_MODEL_PATH_PATTERN
 
 
 @dataclass
@@ -136,6 +137,12 @@ def multi_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list
 
     cal_fps(pbar)
     return outputs
+
+
+def load_model(core: Core, model_meta: ModelMeta, model_type: str, device: str):
+    model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, model_type)
+    model = core.read_model(model_xml)
+    return core.compile_model(model, device)
 
 
 def main(args: Args) -> None:

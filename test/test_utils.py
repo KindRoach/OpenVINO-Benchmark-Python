@@ -8,7 +8,8 @@ from numpy.testing import assert_array_equal
 from openvino.runtime import Core
 from torchvision.transforms import transforms
 
-from utils import MODEL_MAP, TEST_IMAGE_PATH, ModelMeta, load_model, preprocess
+from utils import MODEL_MAP, TEST_IMAGE_PATH, ModelMeta, preprocess
+from run_infer import load_model
 
 
 def torch_predict(model: ModelMeta) -> Tuple[numpy.ndarray, numpy.ndarray]:

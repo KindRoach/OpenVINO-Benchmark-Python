@@ -5,9 +5,8 @@ from typing import Tuple, Callable, Dict
 
 import cv2
 import numpy
-from openvino.runtime import Core
 from torchvision.models import resnet50, ResNet50_Weights, efficientnet_v2_l, EfficientNet_V2_L_Weights
-from torchvision.models._api import Weights
+from torchvision.models._api import WeightsEnum
 
 OV_MODEL_PATH_PATTERN = "output/model/%s/%s/model.xml"
 TEST_VIDEO_PATH = "output/video.mp4"
@@ -21,7 +20,7 @@ class ModelMeta:
     input_mean: Tuple[float, float, float]
     input_std: Tuple[float, float, float]
     load_func: Callable
-    weight: Weights
+    weight: WeightsEnum
 
 
 MODEL_MAP: Dict[str, ModelMeta] = {
@@ -54,8 +53,6 @@ def read_endless_frames():
             yield frame
         else:
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
-    cap.release()
 
 
 def read_all_frames():
@@ -106,19 +103,13 @@ def read_input_with_time(seconds: int, model_meta: ModelMeta, inference_only: bo
     random_frame = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
     random_input = preprocess(random_frame, model_meta)
 
-    endless_input = (preprocess(frame, model_meta) for frame in read_endless_frames())
-    endless_inputs = itertools.cycle([random_input]) if inference_only else endless_input
+    endless_inputs = (preprocess(frame, model_meta) for frame in read_endless_frames())
+    endless_inputs = itertools.cycle([random_input]) if inference_only else endless_inputs
     endless_inputs = iter(endless_inputs)
 
     start_time = time.time()
     while time.time() - start_time < seconds:
         yield next(endless_inputs)
-
-
-def load_model(core: Core, model_meta: ModelMeta, model_type: str, device: str):
-    model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, model_type)
-    model = core.read_model(model_xml)
-    return core.compile_model(model, device)
 
 
 def cal_fps(pbar):
