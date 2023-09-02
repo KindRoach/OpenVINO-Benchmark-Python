@@ -5,7 +5,7 @@ Benchmark in python code for classical computer vision application use case: "De
 ## Prepare Test Data and Models
 
 ```bash
-python prepare_data_and_model.py
+python prepare_data_and_model.py -m all
 ```
 
 ## Run Video Decode Benchmark

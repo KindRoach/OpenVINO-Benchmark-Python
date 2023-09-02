@@ -85,7 +85,7 @@ def quantization(model_meta: ModelMeta) -> None:
 
 @dataclass
 class Args:
-    model: str = choice(*MODEL_MAP.keys(), "all", alias=["-m"], default="all")
+    model: str = choice(*MODEL_MAP.keys(), "all", alias=["-m"], default="resnet_50")
 
 
 def main(args: Args) -> None:
