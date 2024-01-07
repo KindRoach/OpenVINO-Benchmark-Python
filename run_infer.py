@@ -1,27 +1,26 @@
+import os
 import queue
+import sys
 import threading
 import time
-from statistics import mean
-
-import tqdm
-import os
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from statistics import mean
 from threading import Lock
 from typing import List
 
+import timm
+import tqdm
 from openvino.runtime import Core, CompiledModel, AsyncInferQueue
 from simple_parsing import choice, flag, field, ArgumentParser
 from tqdm import tqdm
 
-from utils import MODEL_MAP, ModelMeta, read_input_with_time, cal_fps, read_frames_with_time, preprocess, \
-    OV_MODEL_PATH_PATTERN
+from utils import read_input_with_time, cal_fps, read_frames_with_time, preprocess, OV_MODEL_PATH_PATTERN, MODEL_LIST
 
 
 @dataclass
 class Args:
-    model: str = choice(*MODEL_MAP.keys(), alias=["-m"], default="resnet_50")
+    model: str = choice(*MODEL_LIST, alias=["-m"], default="resnet50")
     model_type: str = choice("fp32", "fp16", "int8", alias=["-mt"], default="int8")
     device: str = field(alias=["-d"], default="CPU")  # The device used for OpenVINO: CPU, GPU, MULTI:CPU,GPU ...
     inference_only: bool = flag(alias=["-io"], default=False)
@@ -30,11 +29,17 @@ class Args:
     duration: int = field(alias=["-t"], default=60)
 
 
-def sync_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list:
+def sync_infer(args: Args, model: CompiledModel, model_cfg: dict) -> list:
     outputs = []
     with tqdm(unit="frame") as pbar:
         infer_req = model.create_infer_request()
-        for frame in read_input_with_time(args.duration, model_meta, args.inference_only):
+        for frame in read_input_with_time(
+                args.duration,
+                model_cfg["input_size"],
+                model_cfg["mean"],
+                model_cfg["std"],
+                args.inference_only
+        ):
             infer_req.infer(frame)
             output = infer_req.get_output_tensor().data
             outputs.append(output)
@@ -44,7 +49,7 @@ def sync_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list:
     return outputs
 
 
-def async_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list:
+def async_infer(args: Args, model: CompiledModel, model_cfg: dict) -> list:
     outputs = dict()
     lock = Lock()
     with tqdm(unit="frame") as pbar:
@@ -57,7 +62,13 @@ def async_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list
         infer_queue = AsyncInferQueue(model)
         infer_queue.set_callback(call_back)
 
-        frames = read_input_with_time(args.duration, model_meta, args.inference_only)
+        frames = read_input_with_time(
+            args.duration,
+            model_cfg["input_size"],
+            model_cfg["mean"],
+            model_cfg["std"],
+            args.inference_only
+        )
         for i, frame in enumerate(frames):
             infer_queue.start_async(frame, i)
 
@@ -66,7 +77,7 @@ def async_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list
     return [item for key, item in sorted(outputs.items())]
 
 
-def one_decode_multi_infer(args: Args, model: CompiledModel, model_meta: ModelMeta):
+def one_decode_multi_infer(args: Args, model: CompiledModel, model_cfg: dict):
     """
     Decode video by one thread as producer and infer frame by a pool of threads as consumers.
     The main difference between this function with "async_infer" is that
@@ -78,7 +89,7 @@ def one_decode_multi_infer(args: Args, model: CompiledModel, model_meta: ModelMe
         if not hasattr(thread_local, 'infer_req'):
             thread_local.infer_req = model.create_infer_request()
 
-        frame = preprocess(frame, model_meta)
+        frame = preprocess(frame, model_cfg["input_size"], model_cfg["mean"], model_cfg["std"])
         infer_req = thread_local.infer_req
         infer_req.start_async(frame)
         infer_req.wait()
@@ -117,12 +128,19 @@ def one_decode_multi_infer(args: Args, model: CompiledModel, model_meta: ModelMe
         return outputs
 
 
-def multi_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list:
+def multi_infer(args: Args, model: CompiledModel, model_cfg: dict) -> list:
     with tqdm(unit="frame") as pbar:
         def infer_stream(thread_id: int):
             outputs = []
             infer_req = model.create_infer_request()
-            frames = read_input_with_time(args.duration, model_meta, args.inference_only)
+            frames = read_input_with_time(
+                args.duration,
+                model_cfg["input_size"],
+                model_cfg["mean"],
+                model_cfg["std"],
+                args.inference_only
+            )
+
             for frame_id, frame in enumerate(frames):
                 infer_req.start_async(frame)
                 infer_req.wait()
@@ -139,8 +157,8 @@ def multi_infer(args: Args, model: CompiledModel, model_meta: ModelMeta) -> list
     return outputs
 
 
-def load_model(core: Core, model_meta: ModelMeta, model_type: str, device: str):
-    model_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, model_type)
+def load_model(core: Core, model_name: str, model_type: str, device: str):
+    model_xml = OV_MODEL_PATH_PATTERN % (model_name, model_type)
     model = core.read_model(model_xml)
     return core.compile_model(model, device)
 
@@ -151,9 +169,9 @@ def main(args: Args) -> None:
     ie.set_property("CPU", {"PERFORMANCE_HINT": throughput_mode})
     ie.set_property("GPU", {"PERFORMANCE_HINT": throughput_mode})
 
-    model_meta = MODEL_MAP[args.model]
-    compiled_model = load_model(ie, model_meta, args.model_type, args.device)
-    globals()[f"{args.run_mode}_infer"](args, compiled_model, model_meta)
+    model_cfg = timm.create_model(args.model, pretrained=True).pretrained_cfg
+    compiled_model = load_model(ie, args.model, args.model_type, args.device)
+    globals()[f"{args.run_mode}_infer"](args, compiled_model, model_cfg)
 
 
 def parse_args(args: List[str]):

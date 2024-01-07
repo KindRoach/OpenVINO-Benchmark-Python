@@ -7,15 +7,14 @@ from typing import List
 
 import nncf
 import numpy
-import openvino.runtime as ov
+import openvino as ov
+import timm
 import torch
-from openvino.tools import mo
 from simple_parsing import choice, ArgumentParser
 from torch.nn import Module
 from torch.utils.data import DataLoader, TensorDataset
 
-from utils import MODEL_MAP, ModelMeta, read_all_frames, preprocess, OV_MODEL_PATH_PATTERN, TEST_VIDEO_PATH, \
-    TEST_IMAGE_PATH
+from utils import read_all_frames, preprocess, OV_MODEL_PATH_PATTERN, TEST_VIDEO_PATH, TEST_IMAGE_PATH, MODEL_LIST
 
 
 def download_file(url: str, target_path: str) -> None:
@@ -39,45 +38,38 @@ def download_video_and_image() -> None:
     )
 
 
-def download_model(model: ModelMeta) -> Module:
-    logging.info("Downloading Model...")
-
-    weight = model.weight
-    load_func = model.load_func
-
-    model = load_func(weights=weight)
-    model.eval()
-
-    return model
-
-
-def convert_torch_to_openvino(model_meta: ModelMeta, model: Module) -> None:
+def convert_torch_to_openvino(model: Module) -> None:
     logging.info("Converting Model to OpenVINO...")
 
-    model_fp32 = mo.convert_model(model, input_shape=(1, *model_meta.input_size))
-    model_fp32_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, "fp32")
+    cfg = model.pretrained_cfg
+    input_shape = [-1, *cfg["input_size"]]
+    ov_model = ov.convert_model(model, input=[input_shape])
+
+    model_fp32_xml = OV_MODEL_PATH_PATTERN % (cfg["architecture"], "fp32")
     Path(model_fp32_xml).parent.mkdir(parents=True, exist_ok=True)
-    ov.serialize(model_fp32, model_fp32_xml)
+    ov.save_model(ov_model, model_fp32_xml)
 
-    model_fp16 = mo.convert_model(model, input_shape=(1, *model_meta.input_size), compress_to_fp16=True)
-    model_fp16_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, "fp16")
-    ov.serialize(model_fp16, model_fp16_xml)
+    model_fp16_xml = OV_MODEL_PATH_PATTERN % (cfg["architecture"], "fp16")
+    ov.save_model(ov_model, model_fp16_xml, compress_to_fp16=True)
 
 
-def quantization(model_meta: ModelMeta) -> None:
-    logging.info(f"{model_meta.name} Model Quantization...")
+def quantization(model: Module) -> None:
+    cfg = model.pretrained_cfg
+
+    model_name = cfg['architecture']
+    logging.info(f"{model_name} Model Quantization...")
 
     frames = []
     for frame in read_all_frames():
-        frame = preprocess(frame, model_meta)[0]
+        frame = preprocess(frame, cfg["input_size"], cfg["mean"], cfg["std"])[0]
         frames.append(frame)
 
     frames = torch.tensor(numpy.array(frames))
     dataloader = DataLoader(TensorDataset(frames), batch_size=1)
     dataset = nncf.Dataset(dataloader, lambda item: item[0].numpy())
 
-    model_fp32_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, "fp32")
-    model_int8_xml = OV_MODEL_PATH_PATTERN % (model_meta.name, "int8")
+    model_fp32_xml = OV_MODEL_PATH_PATTERN % (model_name, "fp32")
+    model_int8_xml = OV_MODEL_PATH_PATTERN % (model_name, "int8")
     model_fp32 = ov.Core().read_model(model_fp32_xml)
     model_int8 = nncf.quantize(model_fp32, dataset)
     ov.serialize(model_int8, model_int8_xml)
@@ -85,18 +77,17 @@ def quantization(model_meta: ModelMeta) -> None:
 
 @dataclass
 class Args:
-    model: str = choice(*MODEL_MAP.keys(), "all", alias=["-m"], default="resnet_50")
+    model: str = choice(*MODEL_LIST, "all", alias=["-m"], default="resnet50")
 
 
 def main(args: Args) -> None:
     download_video_and_image()
-    models = MODEL_MAP.keys() if args.model == "all" else [args.model]
+    models = MODEL_LIST if args.model == "all" else [args.model]
 
     for model_name in models:
-        model_meta = MODEL_MAP[model_name]
-        model = download_model(model_meta)
-        convert_torch_to_openvino(model_meta, model)
-        quantization(model_meta)
+        model = timm.create_model(model_name, pretrained=True)
+        convert_torch_to_openvino(model)
+        quantization(model)
 
 
 def parse_args(args: List[str]):

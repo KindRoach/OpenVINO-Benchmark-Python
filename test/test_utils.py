@@ -2,33 +2,34 @@ from typing import Tuple
 
 import cv2
 import numpy
+import timm
 import torch
 from PIL import Image
 from numpy.testing import assert_array_equal
 from openvino.runtime import Core
 from torchvision.transforms import transforms
 
-from utils import MODEL_MAP, TEST_IMAGE_PATH, ModelMeta, preprocess
 from run_infer import load_model
+from utils import TEST_IMAGE_PATH, preprocess
 
 
-def torch_predict(model: ModelMeta) -> Tuple[numpy.ndarray, numpy.ndarray]:
+def torch_predict(model_name: str) -> Tuple[numpy.ndarray, numpy.ndarray]:
+    # load torch model
+    model = timm.create_model(model_name, pretrained=True)
+    model.eval()
+
+    cfg = model.pretrained_cfg
+
     # torchvision preprocess
     input_image = Image.open(TEST_IMAGE_PATH)
     preprocess = transforms.Compose([
-        transforms.Resize(model.input_size[-1]),
+        transforms.Resize(cfg["input_size"][-1]),
         transforms.ToTensor(),
         transforms.Normalize(
-            mean=model.input_mean,
-            std=model.input_std
+            mean=cfg["mean"],
+            std=cfg["std"]
         ),
     ])
-
-    # load torch model
-    weight = model.weight
-    load_func = model.load_func
-    model = load_func(weights=weight)
-    model.eval()
 
     # torch predict
     input_tensor = preprocess(input_image)
@@ -40,10 +41,14 @@ def torch_predict(model: ModelMeta) -> Tuple[numpy.ndarray, numpy.ndarray]:
     return torch_output.max(axis=1), torch_output.argmax(axis=1)
 
 
-def ov_predict(model: ModelMeta, model_type: str) -> Tuple[numpy.ndarray, numpy.ndarray]:
+def ov_predict(model_name: str, model_type: str) -> Tuple[numpy.ndarray, numpy.ndarray]:
+    # load torch model
+    model = timm.create_model(model_name, pretrained=True)
+    cfg = model.pretrained_cfg
+
     frame = cv2.imread(TEST_IMAGE_PATH)
-    frame = preprocess(frame, model)
-    model = load_model(Core(), model, model_type, "CPU")
+    frame = preprocess(frame, cfg["input_size"], cfg["mean"], cfg["std"])
+    model = load_model(Core(), model_name, model_type, "CPU")
     infer_req = model.create_infer_request()
     infer_req.infer(frame)
     ov_output = infer_req.get_output_tensor().data
@@ -51,7 +56,7 @@ def ov_predict(model: ModelMeta, model_type: str) -> Tuple[numpy.ndarray, numpy.
 
 
 def test_ov_quantization():
-    model = MODEL_MAP["resnet_50"]
+    model = "resnet50"
     torch_confidence, torch_label = torch_predict(model)
     ov_confidence, ov_label = ov_predict(model, "int8")
     assert_array_equal(torch_label, ov_label)
