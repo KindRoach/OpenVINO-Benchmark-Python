@@ -15,7 +15,7 @@ from openvino.runtime import Core, CompiledModel, AsyncInferQueue
 from simple_parsing import choice, flag, field, ArgumentParser
 from tqdm import tqdm
 
-from utils import read_input_with_time, cal_fps, read_frames_with_time, preprocess, OV_MODEL_PATH_PATTERN, MODEL_LIST
+from utils import read_input_with_time, cal_fps_from_tqdm, MODEL_LIST, load_ov_model
 
 
 @dataclass
@@ -45,7 +45,7 @@ def sync_infer(args: Args, model: CompiledModel, model_cfg: dict) -> list:
             outputs.append(output)
             pbar.update(1)
 
-    cal_fps(pbar)
+    cal_fps_from_tqdm(pbar)
     return outputs
 
 
@@ -89,7 +89,6 @@ def one_decode_multi_infer(args: Args, model: CompiledModel, model_cfg: dict):
         if not hasattr(thread_local, 'infer_req'):
             thread_local.infer_req = model.create_infer_request()
 
-        frame = preprocess(frame, model_cfg["input_size"], model_cfg["mean"], model_cfg["std"])
         infer_req = thread_local.infer_req
         infer_req.start_async(frame)
         infer_req.wait()
@@ -101,12 +100,17 @@ def one_decode_multi_infer(args: Args, model: CompiledModel, model_cfg: dict):
         task_queue = queue.Queue(args.n_stream)
 
         def decode_and_submit():
-            frames = read_frames_with_time(args.duration, args.inference_only)
-            all_start_time.append(time.perf_counter())
+            frames = read_input_with_time(
+                args.duration,
+                model_cfg["input_size"],
+                model_cfg["mean"],
+                model_cfg["std"],
+                args.inference_only
+            )
             for frame in frames:
+                all_start_time.append(time.perf_counter())
                 task = pool.submit(infer_one_frame, frame)
                 task_queue.put(task)
-                all_start_time.append(time.perf_counter())
             task_queue.put(None)
 
         t = threading.Thread(target=decode_and_submit)
@@ -122,7 +126,7 @@ def one_decode_multi_infer(args: Args, model: CompiledModel, model_cfg: dict):
 
         all_latency = [1000 * (e - s) for e, s in zip(all_end_time, all_start_time)]
         print(f"latency: avg={mean(all_latency):.2f}ms, min={min(all_latency):.2f}ms, max={max(all_latency):.2f}ms")
-        cal_fps(pbar)
+        cal_fps_from_tqdm(pbar)
         t.join()
 
         return outputs
@@ -153,25 +157,8 @@ def multi_infer(args: Args, model: CompiledModel, model_cfg: dict) -> list:
             ids = range(args.n_stream)
             outputs = list(pool.map(infer_stream, ids))
 
-    cal_fps(pbar)
+    cal_fps_from_tqdm(pbar)
     return outputs
-
-
-def load_model(core: Core, model_name: str, model_type: str, device: str):
-    model_xml = OV_MODEL_PATH_PATTERN % (model_name, model_type)
-    model = core.read_model(model_xml)
-    return core.compile_model(model, device)
-
-
-def main(args: Args) -> None:
-    ie = Core()
-    throughput_mode = "THROUGHPUT" if args.run_mode in ["async", "multi", "one_decode_multi"] else "LATENCY"
-    ie.set_property("CPU", {"PERFORMANCE_HINT": throughput_mode})
-    ie.set_property("GPU", {"PERFORMANCE_HINT": throughput_mode})
-
-    model_cfg = timm.create_model(args.model, pretrained=True).pretrained_cfg
-    compiled_model = load_model(ie, args.model, args.model_type, args.device)
-    globals()[f"{args.run_mode}_infer"](args, compiled_model, model_cfg)
 
 
 def parse_args(args: List[str]):
@@ -180,6 +167,15 @@ def parse_args(args: List[str]):
     return parser.parse_args(args).arguments
 
 
+def main(args: Args) -> None:
+    ie = Core()
+    throughput_mode = "THROUGHPUT" if args.run_mode in ["async", "multi", "one_decode_multi"] else "LATENCY"
+    ie.set_property("CPU", {"PERFORMANCE_HINT": throughput_mode})
+    ie.set_property("GPU", {"PERFORMANCE_HINT": throughput_mode})
+
+    compiled_model, model_cfg = load_ov_model(ie, args.model, args.model_type, args.device)
+    globals()[f"{args.run_mode}_infer"](args, compiled_model, model_cfg)
+
+
 if __name__ == '__main__':
-    args = parse_args(sys.argv[1:])
-    main(args)
+    main(parse_args(sys.argv[1:]))

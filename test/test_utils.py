@@ -9,8 +9,7 @@ from numpy.testing import assert_array_equal
 from openvino.runtime import Core
 from torchvision.transforms import transforms
 
-from run_infer import load_model
-from utils import TEST_IMAGE_PATH, preprocess
+from utils import TEST_IMAGE_PATH, preprocess, load_ov_model
 
 
 def torch_predict(model_name: str) -> Tuple[numpy.ndarray, numpy.ndarray]:
@@ -42,13 +41,9 @@ def torch_predict(model_name: str) -> Tuple[numpy.ndarray, numpy.ndarray]:
 
 
 def ov_predict(model_name: str, model_type: str) -> Tuple[numpy.ndarray, numpy.ndarray]:
-    # load torch model
-    model = timm.create_model(model_name, pretrained=True)
-    cfg = model.pretrained_cfg
-
+    model, cfg = load_ov_model(Core(), model_name, model_type, "CPU")
     frame = cv2.imread(TEST_IMAGE_PATH)
     frame = preprocess(frame, cfg["input_size"], cfg["mean"], cfg["std"])
-    model = load_model(Core(), model_name, model_type, "CPU")
     infer_req = model.create_infer_request()
     infer_req.infer(frame)
     ov_output = infer_req.get_output_tensor().data

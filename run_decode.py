@@ -7,7 +7,7 @@ from typing import List
 from simple_parsing import choice, field, ArgumentParser
 from tqdm import tqdm
 
-from utils import read_frames_with_time, cal_fps
+from utils import read_frames_with_time, cal_fps_from_tqdm
 
 
 @dataclass
@@ -19,23 +19,23 @@ class Args:
 
 def sync_decode(args: Args) -> None:
     with tqdm(unit="frame") as pbar:
-        for frame in read_frames_with_time(args.duration, False):
+        for frame in read_frames_with_time(args.duration):
             pbar.update(1)
 
-    cal_fps(pbar)
+    cal_fps_from_tqdm(pbar)
 
 
 def multi_decode(args: Args) -> None:
     with tqdm(unit="frame") as pbar:
         def decode_stream(thread_id: int):
-            for frame in read_frames_with_time(args.duration, False):
+            for frame in read_frames_with_time(args.duration):
                 pbar.update(1)
 
         with ThreadPoolExecutor(args.n_stream) as pool:
             for i in range(args.n_stream):
                 pool.submit(decode_stream, i)
 
-    cal_fps(pbar)
+    cal_fps_from_tqdm(pbar)
 
 
 def main(args: Args) -> None:
@@ -49,5 +49,4 @@ def parse_args(args: List[str]):
 
 
 if __name__ == '__main__':
-    args = parse_args(sys.argv[1:])
-    main(args)
+    main(parse_args(sys.argv[1:]))

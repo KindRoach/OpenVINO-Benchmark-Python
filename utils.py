@@ -4,6 +4,8 @@ from typing import Tuple
 
 import cv2
 import numpy
+import timm
+from openvino import Core, CompiledModel
 
 OV_MODEL_PATH_PATTERN = "output/model/%s/%s/model.xml"
 TEST_VIDEO_PATH = "output/video.mp4"
@@ -62,11 +64,8 @@ def preprocess(frames, input_shape: Tuple, input_mean: Tuple, input_std: Tuple) 
     return processed_frames
 
 
-def read_frames_with_time(seconds: int, fake_decode: bool):
-    shape = (1080, 1920, 3)
-    random_frame = numpy.random.randint(0, 256, size=shape, dtype=numpy.uint8)
-    endless_frames = itertools.cycle([random_frame]) if fake_decode else read_endless_frames()
-    endless_frames = iter(endless_frames)
+def read_frames_with_time(seconds: int):
+    endless_frames = iter(read_endless_frames())
 
     start_time = time.time()
     while time.time() - start_time < seconds:
@@ -87,7 +86,14 @@ def read_input_with_time(seconds: int, input_shape: Tuple, input_mean: Tuple, in
         yield next(endless_inputs)
 
 
-def cal_fps(pbar):
+def cal_fps_from_tqdm(pbar):
     frames = pbar.format_dict["n"]
     seconds = pbar.format_dict["elapsed"]
     print(f"fps: {frames / seconds:.2f}")
+
+
+def load_ov_model(core: Core, model_name: str, model_type: str, device: str) -> Tuple[CompiledModel, dict]:
+    cfg = timm.create_model(model_name, pretrained=True).pretrained_cfg
+    model_xml = OV_MODEL_PATH_PATTERN % (model_name, model_type)
+    model = core.read_model(model_xml)
+    return core.compile_model(model, device), cfg
