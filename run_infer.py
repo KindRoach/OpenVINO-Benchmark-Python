@@ -15,7 +15,7 @@ from openvino.runtime import Core, CompiledModel, AsyncInferQueue
 from simple_parsing import choice, flag, field, ArgumentParser
 from tqdm import tqdm
 
-from utils import read_input_with_time, cal_fps_from_tqdm, MODEL_LIST, load_ov_model
+from utils import read_input_with_time, cal_fps_from_tqdm, MODEL_LIST, load_ov_compiled_model
 
 
 @dataclass
@@ -173,7 +173,7 @@ def main(args: Args) -> None:
     ie.set_property("CPU", {"PERFORMANCE_HINT": throughput_mode})
     ie.set_property("GPU", {"PERFORMANCE_HINT": throughput_mode})
 
-    compiled_model, model_cfg = load_ov_model(ie, args.model, args.model_type, args.device)
+    compiled_model, model_cfg = load_ov_compiled_model(ie, args.model, args.model_type, args.device)
     globals()[f"{args.run_mode}_infer"](args, compiled_model, model_cfg)
 
 

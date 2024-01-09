@@ -92,7 +92,7 @@ def cal_fps_from_tqdm(pbar):
     print(f"fps: {frames / seconds:.2f}")
 
 
-def load_ov_model(core: Core, model_name: str, model_type: str, device: str) -> Tuple[CompiledModel, dict]:
+def load_ov_compiled_model(core: Core, model_name: str, model_type: str, device: str) -> Tuple[CompiledModel, dict]:
     cfg = timm.create_model(model_name, pretrained=True).pretrained_cfg
     model_xml = OV_MODEL_PATH_PATTERN % (model_name, model_type)
     model = core.read_model(model_xml)
