@@ -55,7 +55,9 @@ def preprocess(frames, input_shape: Tuple, input_mean: Tuple, input_std: Tuple) 
     batch_size = frames.shape[0]
     processed_frames = numpy.zeros((batch_size, *input_shape), dtype=numpy.float32)
     for i in range(batch_size):
-        frame = cv2.resize(frames[i], input_shape[-2:])
+        frame = frames[i]
+        if frame.shape[:2] != input_shape[-2:]:
+            frame = cv2.resize(frames[i], input_shape[-2:])
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = frame.transpose(2, 0, 1)  # HWC to CHW
         frame = (frame - mean[:, None, None]) / std[:, None, None]

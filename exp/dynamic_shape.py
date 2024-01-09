@@ -7,18 +7,18 @@ from exp.exp_util import ExpArgs, parse_exp_args, load_ov_model, benchmark_model
 from utils import MODEL_LIST
 
 
-def exp(model_name: str, model_type: str):
+def exp(model_name: str, model_type: str, device: str):
     print(f"------------------{model_name}:{model_type}------------------")
 
     core = Core()
     model, _ = load_ov_model(core, model_name, model_type)
-    model_static_shape_b1 = core.compile_model(model, "CPU")
+    model_static_shape_b1 = core.compile_model(model, device)
 
     set_batch_size(model, -1)
-    model_dynamic_shape = core.compile_model(model, "CPU")
+    model_dynamic_shape = core.compile_model(model, device)
 
     set_batch_size(model, 8)
-    model_static_shape_b8 = core.compile_model(model, "CPU")
+    model_static_shape_b8 = core.compile_model(model, device)
 
     benchmark_model("static shape b1", model_static_shape_b1)
     benchmark_model("dynamic shape b1", model_dynamic_shape)
@@ -39,7 +39,7 @@ def main(args: ExpArgs):
     models = MODEL_LIST if args.model == "all" else [args.model]
     model_types = ["fp32", "fp16", "int8"] if args.model_type == "all" else [args.model_type]
     for model, type in itertools.product(models, model_types):
-        exp(model, type)
+        exp(model, type, args.device)
 
 
 if __name__ == '__main__':
