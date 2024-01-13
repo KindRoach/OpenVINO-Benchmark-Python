@@ -1,11 +1,9 @@
 import itertools
 import sys
-from typing import Tuple
 
 import numpy
-import timm
 from openvino import Model
-from openvino.preprocess import ColorFormat, ResizeAlgorithm, PrePostProcessor
+from openvino.preprocess import ColorFormat, PrePostProcessor
 from openvino.runtime import Core, Type, Layout
 
 from exp.dynamic_shape import set_batch_size
@@ -19,6 +17,7 @@ def exp(model_name: str, model_type: str, device: str):
     print(f"------------------{model_name}:{model_type}------------------")
 
     model_no_preprocess, model_cfg = load_ov_model(core, model_name, model_type)
+    set_batch_size(model_no_preprocess, 1)
     model_ov_preprocess = build_ppp_model(model_name, model_type)
 
     mnp = core.compile_model(model_no_preprocess, device)
@@ -56,6 +55,7 @@ def build_ppp_model(model_name: str, model_type: str) -> Model:
         .scale(scale)
 
     return ppp.build()
+
 
 def main(args: ExpArgs):
     models = MODEL_LIST if args.model == "all" else [args.model]

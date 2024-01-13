@@ -9,7 +9,6 @@ from statistics import mean
 from threading import Lock
 from typing import List
 
-import timm
 import tqdm
 from openvino.runtime import Core, CompiledModel, AsyncInferQueue
 from simple_parsing import choice, flag, field, ArgumentParser

@@ -12,6 +12,7 @@ def exp(model_name: str, model_type: str, device: str):
 
     core = Core()
     model, _ = load_ov_model(core, model_name, model_type)
+    set_batch_size(model, 1)
     model_static_shape_b1 = core.compile_model(model, device)
 
     set_batch_size(model, -1)

@@ -65,13 +65,13 @@ def quantization(model: Module) -> None:
         frames.append(frame)
 
     frames = torch.tensor(numpy.array(frames))
-    dataloader = DataLoader(TensorDataset(frames), batch_size=1)
+    dataloader = DataLoader(TensorDataset(frames))
     dataset = nncf.Dataset(dataloader, lambda item: item[0].numpy())
 
     model_fp32_xml = OV_MODEL_PATH_PATTERN % (model_name, "fp32")
     model_int8_xml = OV_MODEL_PATH_PATTERN % (model_name, "int8")
     model_fp32 = ov.Core().read_model(model_fp32_xml)
-    model_int8 = nncf.quantize(model_fp32, dataset)
+    model_int8 = nncf.quantize(model_fp32, dataset, subset_size=len(dataloader))
     ov.serialize(model_int8, model_int8_xml)
 
 

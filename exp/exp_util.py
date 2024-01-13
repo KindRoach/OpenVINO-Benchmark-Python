@@ -1,4 +1,3 @@
-import tqdm
 import itertools
 import time
 from dataclasses import dataclass
@@ -6,6 +5,7 @@ from typing import List, Tuple
 
 import numpy as np
 import timm
+import tqdm
 from openvino import CompiledModel, Core, Model
 from simple_parsing import choice, ArgumentParser, field
 from tqdm import tqdm
