@@ -47,7 +47,7 @@ def convert_torch_to_openvino(model: Module) -> None:
 
     model_fp32_xml = OV_MODEL_PATH_PATTERN % (cfg["architecture"], "fp32")
     Path(model_fp32_xml).parent.mkdir(parents=True, exist_ok=True)
-    ov.save_model(ov_model, model_fp32_xml)
+    ov.save_model(ov_model, model_fp32_xml, compress_to_fp16=False)
 
     model_fp16_xml = OV_MODEL_PATH_PATTERN % (cfg["architecture"], "fp16")
     ov.save_model(ov_model, model_fp16_xml, compress_to_fp16=True)
