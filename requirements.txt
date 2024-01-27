@@ -1,9 +1,11 @@
 # OpenVINO libs
---extra-index-url https://download.pytorch.org/whl/cpu
-openvino-dev[pytorch]==2023.2.0
-torch==2.1.0
-nncf==2.7.0
+openvino==2023.3.0
 
 # other libs
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.0
+opencv-python==4.8.0.76
+nncf==2.7.0
+
 timm==0.9.12
 simple-parsing==0.1.4

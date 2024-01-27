@@ -1,6 +1,6 @@
 # OpenVINO Benchmark Python
 
-Benchmark in python code for classical computer vision application use case: "Decode &amp; Inference".
+Benchmark in python code for a classical computer vision application use case: "Decode &amp; Inference".
 
 ## Prepare Test Data and Models
 
